@@ -2489,27 +2489,28 @@ static void ReportNewsProductionChangeIndustry(Industry *ind, CargoID type, int 
 /**
  * Perform an industry production change to specific parameters.
  * @param i         The industry to affect
- * @param div       Halve production this many times
- * @param mul       Double production this many times
+ * @param expstep   Exponentially change production this many steps (negative values halve, positive values double)
  * @param increment Change production up/down this many steps
  * @param closeit   Force industry to close now
  * @param suppress_message Prevent any news message from being shown
  * @param str       Specific news message to show, \c STR_NULL to use default message for the change
  */
-void Industry::ChangeProduction(byte div, byte mul, int8 increment, bool closeit, bool suppress_message, StringID str)
+void Industry::ChangeProduction(int8 expstep, int8 increment, bool closeit, bool suppress_message, StringID str)
 {
 	const IndustrySpec *indspec = GetIndustrySpec(this->type);
 	bool recalculate_multipliers = false;
 
 	/* Increase if needed */
-	while (mul-- != 0 && this->prod_level < PRODLEVEL_MAXIMUM) {
+	while (expstep > 0 && this->prod_level < PRODLEVEL_MAXIMUM) {
+		expstep--;
 		this->prod_level = min(this->prod_level * 2, PRODLEVEL_MAXIMUM);
 		recalculate_multipliers = true;
 		if (str == STR_NULL) str = indspec->production_up_text;
 	}
 
 	/* Decrease if needed */
-	while (div-- != 0 && !closeit) {
+	while (expstep < 0 && !closeit) {
+		expstep++;
 		if (this->prod_level == PRODLEVEL_MINIMUM) {
 			closeit = true;
 		} else {
@@ -2594,8 +2595,7 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 	bool recalculate_multipliers = false; ///< reinitialize production_rate to match prod_level
 	/* don't use smooth economy for industries using production related callbacks */
 	bool smooth_economy = indspec->UsesSmoothEconomy();
-	byte div = 0;
-	byte mul = 0;
+	int8 expstep = 0;
 	int8 increment = 0;
 
 	bool callback_enabled = HasBit(indspec->callback_mask, monthly ? CBM_IND_MONTHLYPROD_CHANGE : CBM_IND_PRODUCTION_CHANGE);
@@ -2609,18 +2609,16 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 			switch (res) {
 				default: NOT_REACHED();
 				case 0x0: break;                  // Do nothing, but show the custom message if any
-				case 0x1: div = 1; break;         // Halve industry production. If production reaches the quarter of the default, the industry is closed instead.
-				case 0x2: mul = 1; break;         // Double industry production if it hasn't reached eight times of the original yet.
+				case 0x1: expstep = -1; break;    // Halve industry production. If production reaches the quarter of the default, the industry is closed instead.
+				case 0x2: expstep = +1; break;    // Double industry production if it hasn't reached eight times of the original yet.
 				case 0x3: closeit = true; break;  // The industry announces imminent closure, and is physically removed from the map next month.
 				case 0x4: standard = true; break; // Do the standard random production change as if this industry was a primary one.
-				case 0x5: case 0x6: case 0x7:     // Divide production by 4, 8, 16
-				case 0x8: div = res - 0x3; break; // Divide production by 32
-				case 0x9: case 0xA: case 0xB:     // Multiply production by 4, 8, 16
-				case 0xC: mul = res - 0x7; break; // Multiply production by 32
-				case 0xD:                         // decrement production
-				case 0xE:                         // increment production
-					increment = res == 0x0D ? -1 : 1;
-					break;
+				case 0x5: case 0x6: case 0x7:         // Divide production by 4, 8, 16
+				case 0x8: expstep = 3 - res; break;   // Divide production by 32
+				case 0x9: case 0xA: case 0xB:         // Multiply production by 4, 8, 16
+				case 0xC: expstep = res - 0x7; break; // Multiply production by 32
+				case 0xD: increment = -1; break;  // decrement production
+				case 0xE: increment = +1; break;  // increment production
 				case 0xF:                         // Set production to third byte of register 0x100
 					i->prod_level = Clamp(GB(GetRegister(0x100), 16, 8), PRODLEVEL_MINIMUM, PRODLEVEL_MAXIMUM);
 					i->RecomputeProductionMultipliers();
@@ -2691,9 +2689,9 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 			if (only_decrease || Chance16(1, 3)) {
 				/* If more than 60% transported, 66% chance of increase, else 33% chance of increase */
 				if (!only_decrease && (i->last_month_pct_transported[0] > PERCENT_TRANSPORTED_60) != Chance16(1, 3)) {
-					mul = 1; // Increase production
+					expstep = +1; // Increase production
 				} else {
-					div = 1; // Decrease production
+					expstep = -1; // Decrease production
 				}
 			}
 		}
@@ -2705,7 +2703,7 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 		}
 	}
 
-	i->ChangeProduction(div, mul, increment, closeit, suppress_message, str);
+	i->ChangeProduction(expstep, increment, closeit, suppress_message, str);
 }
 
 /**

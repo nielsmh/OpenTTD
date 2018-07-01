@@ -86,7 +86,7 @@ struct Industry : IndustryPool::PoolItem<&_industry_pool> {
 		return IsTileType(tile, MP_INDUSTRY) && GetIndustryIndex(tile) == this->index;
 	}
 
-	void ChangeProduction(byte div, byte mul, int8 increment, bool closeit, bool suppress_message, StringID str);
+	void ChangeProduction(int8 expstep, int8 increment, bool closeit, bool suppress_message, StringID str);
 
 	/**
 	 * Get the industry of the given tile
