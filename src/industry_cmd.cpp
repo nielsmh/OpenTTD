@@ -2486,6 +2486,96 @@ static void ReportNewsProductionChangeIndustry(Industry *ind, CargoID type, int 
 	);
 }
 
+/**
+ * Perform an industry production change to specific parameters.
+ * @param i         The industry to affect
+ * @param div       Halve production this many times
+ * @param mul       Double production this many times
+ * @param increment Change production up/down this many steps
+ * @param closeit   Force industry to close now
+ * @param suppress_message Prevent any news message from being shown
+ * @param str       Specific news message to show, \c STR_NULL to use default message for the change
+ */
+void Industry::ChangeProduction(byte div, byte mul, int8 increment, bool closeit, bool suppress_message, StringID str)
+{
+	const IndustrySpec *indspec = GetIndustrySpec(this->type);
+	bool recalculate_multipliers = false;
+
+	/* Increase if needed */
+	while (mul-- != 0 && this->prod_level < PRODLEVEL_MAXIMUM) {
+		this->prod_level = min(this->prod_level * 2, PRODLEVEL_MAXIMUM);
+		recalculate_multipliers = true;
+		if (str == STR_NULL) str = indspec->production_up_text;
+	}
+
+	/* Decrease if needed */
+	while (div-- != 0 && !closeit) {
+		if (this->prod_level == PRODLEVEL_MINIMUM) {
+			closeit = true;
+		} else {
+			this->prod_level = max(this->prod_level / 2, (int)PRODLEVEL_MINIMUM); // typecast to int required to please MSVC
+			recalculate_multipliers = true;
+			if (str == STR_NULL) str = indspec->production_down_text;
+		}
+	}
+
+	/* Increase or Decreasing the production level if needed */
+	if (increment != 0) {
+		if (increment < 0 && this->prod_level == PRODLEVEL_MINIMUM) {
+			closeit = true;
+		} else {
+			this->prod_level = ClampU(this->prod_level + increment, PRODLEVEL_MINIMUM, PRODLEVEL_MAXIMUM);
+			recalculate_multipliers = true;
+		}
+	}
+
+	/* Recalculate production_rate
+	 * For non-smooth economy these should always be synchronized with prod_level */
+	if (recalculate_multipliers) this->RecomputeProductionMultipliers();
+
+	/* Close if needed and allowed */
+	if (closeit && !CheckIndustryCloseDownProtection(this->type)) {
+		this->prod_level = PRODLEVEL_CLOSURE;
+		SetWindowDirty(WC_INDUSTRY_VIEW, this->index);
+		str = indspec->closure_text;
+	}
+
+	if (!suppress_message && str != STR_NULL) {
+		NewsType nt;
+		/* Compute news category */
+		if (closeit) {
+			nt = NT_INDUSTRY_CLOSE;
+			AI::BroadcastNewEvent(new ScriptEventIndustryClose(this->index));
+			Game::NewEvent(new ScriptEventIndustryClose(this->index));
+		} else {
+			switch (WhoCanServiceIndustry(this)) {
+				case 0: nt = NT_INDUSTRY_NOBODY;  break;
+				case 1: nt = NT_INDUSTRY_OTHER;   break;
+				case 2: nt = NT_INDUSTRY_COMPANY; break;
+				default: NOT_REACHED();
+			}
+		}
+		/* Set parameters of news string */
+		if (str > STR_LAST_STRINGID) {
+			SetDParam(0, STR_TOWN_NAME);
+			SetDParam(1, this->town->index);
+			SetDParam(2, indspec->name);
+		} else if (closeit) {
+			SetDParam(0, STR_FORMAT_INDUSTRY_NAME);
+			SetDParam(1, this->town->index);
+			SetDParam(2, indspec->name);
+		} else {
+			SetDParam(0, this->index);
+		}
+		/* and report the news to the user */
+		if (closeit) {
+			AddTileNewsItem(str, nt, this->location.tile + TileDiffXY(1, 1));
+		} else {
+			AddIndustryNewsItem(str, nt, this->index);
+		}
+	}
+}
+
 static const uint PERCENT_TRANSPORTED_60 = 153;
 static const uint PERCENT_TRANSPORTED_80 = 204;
 
@@ -2533,7 +2623,7 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 					break;
 				case 0xF:                         // Set production to third byte of register 0x100
 					i->prod_level = Clamp(GB(GetRegister(0x100), 16, 8), PRODLEVEL_MINIMUM, PRODLEVEL_MAXIMUM);
-					recalculate_multipliers = true;
+					i->RecomputeProductionMultipliers();
 					break;
 			}
 		}
@@ -2615,79 +2705,7 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 		}
 	}
 
-	/* Increase if needed */
-	while (mul-- != 0 && i->prod_level < PRODLEVEL_MAXIMUM) {
-		i->prod_level = min(i->prod_level * 2, PRODLEVEL_MAXIMUM);
-		recalculate_multipliers = true;
-		if (str == STR_NULL) str = indspec->production_up_text;
-	}
-
-	/* Decrease if needed */
-	while (div-- != 0 && !closeit) {
-		if (i->prod_level == PRODLEVEL_MINIMUM) {
-			closeit = true;
-		} else {
-			i->prod_level = max(i->prod_level / 2, (int)PRODLEVEL_MINIMUM); // typecast to int required to please MSVC
-			recalculate_multipliers = true;
-			if (str == STR_NULL) str = indspec->production_down_text;
-		}
-	}
-
-	/* Increase or Decreasing the production level if needed */
-	if (increment != 0) {
-		if (increment < 0 && i->prod_level == PRODLEVEL_MINIMUM) {
-			closeit = true;
-		} else {
-			i->prod_level = ClampU(i->prod_level + increment, PRODLEVEL_MINIMUM, PRODLEVEL_MAXIMUM);
-			recalculate_multipliers = true;
-		}
-	}
-
-	/* Recalculate production_rate
-	 * For non-smooth economy these should always be synchronized with prod_level */
-	if (recalculate_multipliers) i->RecomputeProductionMultipliers();
-
-	/* Close if needed and allowed */
-	if (closeit && !CheckIndustryCloseDownProtection(i->type)) {
-		i->prod_level = PRODLEVEL_CLOSURE;
-		SetWindowDirty(WC_INDUSTRY_VIEW, i->index);
-		str = indspec->closure_text;
-	}
-
-	if (!suppress_message && str != STR_NULL) {
-		NewsType nt;
-		/* Compute news category */
-		if (closeit) {
-			nt = NT_INDUSTRY_CLOSE;
-			AI::BroadcastNewEvent(new ScriptEventIndustryClose(i->index));
-			Game::NewEvent(new ScriptEventIndustryClose(i->index));
-		} else {
-			switch (WhoCanServiceIndustry(i)) {
-				case 0: nt = NT_INDUSTRY_NOBODY;  break;
-				case 1: nt = NT_INDUSTRY_OTHER;   break;
-				case 2: nt = NT_INDUSTRY_COMPANY; break;
-				default: NOT_REACHED();
-			}
-		}
-		/* Set parameters of news string */
-		if (str > STR_LAST_STRINGID) {
-			SetDParam(0, STR_TOWN_NAME);
-			SetDParam(1, i->town->index);
-			SetDParam(2, indspec->name);
-		} else if (closeit) {
-			SetDParam(0, STR_FORMAT_INDUSTRY_NAME);
-			SetDParam(1, i->town->index);
-			SetDParam(2, indspec->name);
-		} else {
-			SetDParam(0, i->index);
-		}
-		/* and report the news to the user */
-		if (closeit) {
-			AddTileNewsItem(str, nt, i->location.tile + TileDiffXY(1, 1));
-		} else {
-			AddIndustryNewsItem(str, nt, i->index);
-		}
-	}
+	i->ChangeProduction(div, mul, increment, closeit, suppress_message, str);
 }
 
 /**
