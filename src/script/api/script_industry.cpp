@@ -17,6 +17,7 @@
 #include "../../strings_func.h"
 #include "../../station_base.h"
 #include "../../newgrf_industries.h"
+#include "../../date_func.h"
 #include "table/strings.h"
 
 #include "../../safeguards.h"
@@ -207,4 +208,18 @@
 	if (!IsValidIndustry(industry_id)) return INVALID_INDUSTRYTYPE;
 
 	return ::Industry::Get(industry_id)->type;
+}
+
+/* static */ Date ScriptIndustry::GetProductionFrozenUntil(IndustryID industry_id)
+{
+	if (!IsValidIndustry(industry_id)) return INVALID_DATE;
+
+	return ::Industry::Get(industry_id)->production_frozen_until;
+}
+
+/* static */ bool ScriptIndustry::FreezeProduction(IndustryID industry_id, int32 days)
+{
+	if (!IsValidIndustry(industry_id)) return INVALID_DATE;
+
+	return ScriptObject::DoCommand(0, industry_id, _date + days, CMD_INDUSTRY_FREEZE_PRODUCTION);
 }

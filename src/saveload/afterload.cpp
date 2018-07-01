@@ -2983,6 +2983,14 @@ bool AfterLoadGame()
 		}
 	}
 
+	if (IsSavegameVersionBefore(200)) {
+		/* Make sure no industries have frozen production */
+		Industry *i;
+		FOR_ALL_INDUSTRIES(i) {
+			i->production_frozen_until = 0;
+		}
+	}
+
 	/* Station acceptance is some kind of cache */
 	if (IsSavegameVersionBefore(127)) {
 		Station *st;

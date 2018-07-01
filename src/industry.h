@@ -51,6 +51,7 @@ struct Industry : IndustryPool::PoolItem<&_industry_pool> {
 	uint16 last_month_production[2];    ///< total units produced per cargo in the last full month
 	uint16 last_month_transported[2];   ///< total units transported per cargo in the last full month
 	uint16 counter;                     ///< used for animation and/or production (if available cargo)
+	Date production_frozen_until;       ///< random production changes/closure can't happen before this date
 
 	IndustryType type;                  ///< type of industry.
 	OwnerByte owner;                    ///< owner of the industry.  Which SHOULD always be (imho) OWNER_NONE

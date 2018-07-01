@@ -1940,6 +1940,28 @@ CommandCost CmdBuildIndustry(TileIndex tile, DoCommandFlag flags, uint32 p1, uin
 
 
 /**
+ * Prevent an industry from changing production rates under standard rules.
+ * Will succeed even if industry uses special rules, but the freeze might have no effect.
+ * @param tile unused
+ * @param flags of operations to conduct
+ * @param p1 Industry ID to freeze
+ * @param p2 Date when industry can begin changing production rates again
+ * @param text unused
+ * @return the cost of this operation or an error
+ */
+CommandCost CmdIndustryProductionFreeze(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	Industry *i = Industry::GetIfValid(p1);
+
+	if (i && (flags & DC_EXEC)) {
+		i->production_frozen_until = p2;
+	}
+
+	return CommandCost();
+}
+
+
+/**
  * Create a new industry of random layout.
  * @param tile The location to build the industry.
  * @param type The industry type to build.
@@ -2518,6 +2540,7 @@ static void ChangeIndustryProduction(Industry *i, bool monthly)
 	} else {
 		if (monthly != smooth_economy) return;
 		if (indspec->life_type == INDUSTRYLIFE_BLACK_HOLE) return;
+		if (_date < i->production_frozen_until) return;
 	}
 
 	if (standard || (!callback_enabled && (indspec->life_type & (INDUSTRYLIFE_ORGANIC | INDUSTRYLIFE_EXTRACTIVE)) != 0)) {

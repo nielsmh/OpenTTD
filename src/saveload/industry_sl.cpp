@@ -40,6 +40,7 @@ static const SaveLoad _industry_desc[] = {
 	    SLE_ARR(Industry, last_month_transported,     SLE_UINT16, 2),
 
 	    SLE_VAR(Industry, counter,                    SLE_UINT16),
+	SLE_CONDVAR(Industry, production_frozen_until,    SLE_UINT32,               200, SL_MAX_VERSION),
 
 	    SLE_VAR(Industry, type,                       SLE_UINT8),
 	    SLE_VAR(Industry, owner,                      SLE_UINT8),

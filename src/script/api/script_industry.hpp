@@ -13,6 +13,7 @@
 #define SCRIPT_INDUSTRY_HPP
 
 #include "script_object.hpp"
+#include "../../date_func.h"
 
 /**
  * Class that handles all industry related functions.
@@ -198,6 +199,27 @@ public:
 	 * @return The IndustryType of the industry.
 	 */
 	static IndustryType GetIndustryType(IndustryID industry_id);
+
+	/**
+	 * Get date the industry can have random production changes happen again.
+	 * If there is no production freeze in effect, the result is dato zero.
+	 * @param industry_id The index of the industry.
+	 * @pre IsValidIndustry(industry_id).
+	 * @return Date when standard rules can cause the industry to change production again.
+	 */
+	static Date GetProductionFrozenUntil(IndustryID industry_id);
+
+	/**
+	 * Prevent an industry from changing production rates under standard rules.
+	 * This only affects industries that don't use NewGRF callbacks for special production,
+	 * increase, or decrease rules. The command will succeed, but will have no effect.
+	 * @param industry_id The index of the industry.
+	 * @param days Number of days from now to freeze production for, 0 unfreezes immediately.
+	 * @pre IsValidIndustry(industry_id).
+	 * @return True if change was successful.
+	 * @api -ai
+	 */
+	static bool FreezeProduction(IndustryID industry_id, int32 days);
 };
 
 #endif /* SCRIPT_INDUSTRY_HPP */

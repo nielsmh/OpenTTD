@@ -44,6 +44,7 @@ void SQAIIndustry_Register(Squirrel *engine)
 	SQAIIndustry.DefSQStaticMethod(engine, &ScriptIndustry::HasDock,                           "HasDock",                           2, ".i");
 	SQAIIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetDockLocation,                   "GetDockLocation",                   2, ".i");
 	SQAIIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetIndustryType,                   "GetIndustryType",                   2, ".i");
+	SQAIIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetProductionFrozenUntil,          "GetProductionFrozenUntil",          2, ".i");
 
 	SQAIIndustry.PostRegister(engine);
 }
