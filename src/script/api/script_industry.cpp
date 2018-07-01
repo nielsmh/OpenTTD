@@ -223,3 +223,59 @@
 
 	return ScriptObject::DoCommand(0, industry_id, _date + days, CMD_INDUSTRY_FREEZE_PRODUCTION);
 }
+
+/* static */ int32 ScriptIndustry::GetProductionRate(IndustryID industry_id, CargoID cargo_id)
+{
+	if (!IsValidIndustry(industry_id)) return -1;
+	if (!ScriptCargo::IsValidCargo(cargo_id)) return -1;
+
+	const Industry *i = ::Industry::Get(industry_id);
+
+	for (byte j = 0; j < lengthof(i->produced_cargo); j++) {
+		if (i->produced_cargo[j] == cargo_id) return i->production_rate[j];
+	}
+
+	return -1;
+}
+
+/* static */ bool ScriptIndustry::ChangeProductionRate(IndustryID industry_id, int32 expstep, int32 increment, bool show_news)
+{
+	if (!IsValidIndustry(industry_id)) return false;
+
+	expstep = Clamp(expstep, -128, 127);
+	increment = Clamp(increment, -128, 127);
+
+	uint32 p2 = (uint32)(byte)expstep | ((uint32)(byte) increment << 8);
+	if (!show_news) p2 |= 0x020000; // bit 17 = suppress_message bit
+
+	return ScriptObject::DoCommand(0, industry_id, p2, CMD_INDUSTRY_STEP_PRODUCTION);
+}
+
+/* static */ bool ScriptIndustry::SetProductionRate(IndustryID industry_id, CargoID cargo_id, int32 newrate, bool show_news)
+{
+	if (!IsValidIndustry(industry_id)) return false;
+	if (!ScriptCargo::IsValidCargo(cargo_id)) return false;
+
+	const Industry *i = ::Industry::Get(industry_id);
+
+	for (byte j = 0; j < lengthof(i->produced_cargo); j++) {
+		if (i->produced_cargo[j] == cargo_id) {
+			uint32 p2 = (uint32)Clamp(newrate, 0, 255);
+			p2 |= (uint32)j << 8;
+			if (!show_news) p2 |= 0x020000; // bit 17 = suppress_message bit
+			return ScriptObject::DoCommand(0, industry_id, p2, CMD_INDUSTRY_SET_PRODUCTION);
+		}
+	}
+
+	return false;
+}
+
+/* static */ bool ScriptIndustry::Close(IndustryID industry_id, bool show_news)
+{
+	if (!IsValidIndustry(industry_id)) return false;
+
+	uint32 p2 = 0x010000; // bit 16 = closeit bit
+	if (!show_news) p2 |= 0x020000; // bit 17 = suppress_message bit
+
+	return ScriptObject::DoCommand(0, industry_id, p2, CMD_INDUSTRY_STEP_PRODUCTION);
+}

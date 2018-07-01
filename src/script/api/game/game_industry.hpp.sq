@@ -46,6 +46,10 @@ void SQGSIndustry_Register(Squirrel *engine)
 	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetIndustryType,                   "GetIndustryType",                   2, ".i");
 	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetProductionFrozenUntil,          "GetProductionFrozenUntil",          2, ".i");
 	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::FreezeProduction,                  "FreezeProduction",                  3, ".ii");
+	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::GetProductionRate,                 "GetProductionRate",                 3, ".ii");
+	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::ChangeProductionRate,              "ChangeProductionRate",              5, ".iiib");
+	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::SetProductionRate,                 "SetProductionRate",                 5, ".iiib");
+	SQGSIndustry.DefSQStaticMethod(engine, &ScriptIndustry::Close,                             "Close",                             3, ".ib");
 
 	SQGSIndustry.PostRegister(engine);
 }

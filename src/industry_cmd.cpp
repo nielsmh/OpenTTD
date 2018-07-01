@@ -1943,7 +1943,7 @@ CommandCost CmdBuildIndustry(TileIndex tile, DoCommandFlag flags, uint32 p1, uin
  * Prevent an industry from changing production rates under standard rules.
  * Will succeed even if industry uses special rules, but the freeze might have no effect.
  * @param tile unused
- * @param flags of operations to conduct
+ * @param flags nothing happens unless DC_EXEC
  * @param p1 Industry ID to freeze
  * @param p2 Date when industry can begin changing production rates again
  * @param text unused
@@ -1955,6 +1955,95 @@ CommandCost CmdIndustryProductionFreeze(TileIndex tile, DoCommandFlag flags, uin
 
 	if (i && (flags & DC_EXEC)) {
 		i->production_frozen_until = p2;
+	}
+
+	return CommandCost();
+}
+
+
+/**
+ * Change an industry's production level by steps, or make it close.
+ * Will fail if the industry uses NewGRF callbacks to control production.
+ * Will fail on non-primary industries.
+ * @param tile unused
+ * @param flags nothing happens unless DC_EXEC
+ * @param p1 Industry ID to change
+ * @param p2 Bitstuffed data:
+ * - p2 = (bit  0 -  7) - signed byte of exponential change (halving/doubling)
+ * - p2 = (bit  8 - 15) - signed byte of single-step change
+ * - p2 = (bit 16     ) - 0 = use normal industry closure rules, 1 = force industry to close next month
+ * - p2 = (bit 17     ) - 0 = show news as normal, 1 = prevent news message from showing
+ * @param text unused
+ * @return the cost of the operation or an error
+ */
+CommandCost CmdIndustryStepProduction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	Industry *i = Industry::GetIfValid(p1);
+	if (!i || !(flags & DC_EXEC)) return CommandCost();
+
+	const IndustrySpec *indspec = GetIndustrySpec(i->type);
+	if (!indspec->IsRawIndustry()) return CommandCost();
+	if (indspec->callback_mask & (CBM_IND_MONTHLYPROD_CHANGE | CBM_IND_PRODUCTION_CHANGE | CBM_IND_PRODUCTION_CARGO_ARRIVAL | CBM_IND_PRODUCTION_256_TICKS)) return CommandCost();
+
+	int8 expstep = (int8)GB(p2, 0, 8);
+	int8 increment = (int8)GB(p2, 8, 8);
+	bool closeit = HasBit(p2, 16);
+	bool suppress_message = HasBit(p2, 17);
+	i->ChangeProduction(expstep, increment, closeit, suppress_message, STR_NULL);
+
+	return CommandCost();
+}
+
+
+static void ReportNewsProductionChangeIndustry(Industry *ind, CargoID type, int percent);
+
+/**
+ * Set the production of an industry to a specific rate.
+ * Will fail if the industry uses NewGRF callbacks to control production.
+ * Will fail on non-primary industries.
+ * @param tile unused
+ * @param flags nothing happens unless DC_EXEC
+ * @param p1 Industry ID to change
+ * @param p2 Bitstuffed data:
+ * - p2 = (bit  0 -  7) - unsigned byte, new production level
+ * - p2 = (bit  8     ) - 0 = change cargo 1 production, 1 = change cargo 2 production
+ * - p2 = (bit  9 - 16) - reserved, leave 0
+ * - p2 = (bit 17     ) - 0 = show news as normal, 1 = prevent news message from showing
+ * @param text unused
+ * @return the cost of the operation or an error
+ */
+CommandCost CmdIndustrySetProduction(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32 p2, const char *text)
+{
+	Industry *i = Industry::GetIfValid(p1);
+	if (!i || !(flags & DC_EXEC)) return CommandCost();
+
+	const IndustrySpec *indspec = GetIndustrySpec(i->type);
+	if (!indspec->IsRawIndustry()) return CommandCost();
+	if (indspec->callback_mask & (CBM_IND_MONTHLYPROD_CHANGE | CBM_IND_PRODUCTION_CHANGE | CBM_IND_PRODUCTION_CARGO_ARRIVAL | CBM_IND_PRODUCTION_256_TICKS)) return CommandCost();
+
+	int newprod = (int)GB(p2, 0, 8);
+	int whichcargo = (int)GB(p2, 8, 1);
+	bool suppress_message = HasBit(p2, 17);
+
+	if (i->produced_cargo[whichcargo] == CT_INVALID) return CommandCost();
+
+	int oldprod = i->production_rate[whichcargo];
+	newprod = Clamp(newprod, 0, 255); // probably not necessary?
+
+	/* Prevent over production of passengers on oil rig, copied from ChangeIndustryProduction */
+	if (((indspec->behaviour & INDUSTRYBEH_BUILT_ONWATER) != 0) && whichcargo == 1) {
+		newprod = Clamp(newprod, 0, 16);
+	}
+
+	int percent = (oldprod == 0) ? 100 : (100 * newprod / oldprod - 100);
+
+	i->production_rate[whichcargo] = (byte)newprod;
+
+	/* Check if production dropped to all zero, close in that case and don't perform the regular news report */
+	if ((i->production_rate[0] == 0 || i->produced_cargo[0] == CT_INVALID) && (i->production_rate[1] == 0 || i->produced_cargo[1] == CT_INVALID)) {
+		i->ChangeProduction(0, 0, true, suppress_message, STR_NULL);
+	} else if (abs(percent) >= 10 && !suppress_message) {
+		ReportNewsProductionChangeIndustry(i, i->produced_cargo[whichcargo], percent);
 	}
 
 	return CommandCost();

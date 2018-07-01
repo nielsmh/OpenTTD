@@ -332,6 +332,8 @@ enum Commands {
 	CMD_OPEN_CLOSE_AIRPORT,           ///< open/close an airport to incoming aircraft
 
 	CMD_INDUSTRY_FREEZE_PRODUCTION,   ///< prevent standard rules industry from changing production rates or closing
+	CMD_INDUSTRY_STEP_PRODUCTION,     ///< change production rates of an industry stepwise, or close it
+	CMD_INDUSTRY_SET_PRODUCTION,      ///< change production rate of an industry to a specific level
 
 	CMD_END,                          ///< Must ALWAYS be on the end of this list!! (period)
 };

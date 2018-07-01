@@ -200,6 +200,8 @@ CommandProc CmdSetTimetableStart;
 CommandProc CmdOpenCloseAirport;
 
 CommandProc CmdIndustryProductionFreeze;
+CommandProc CmdIndustryStepProduction;
+CommandProc CmdIndustrySetProduction;
 
 #define DEF_CMD(proc, flags, type) {proc, #proc, (CommandFlags)flags, type}
 
@@ -360,6 +362,8 @@ static const Command _command_proc_table[] = {
 	DEF_CMD(CmdOpenCloseAirport,                               0, CMDT_ROUTE_MANAGEMENT      ), // CMD_OPEN_CLOSE_AIRPORT
 
 	DEF_CMD(CmdIndustryProductionFreeze,  CMD_DEITY | CMD_SERVER, CMDT_OTHER_MANAGEMENT      ), // CMD_INDUSTRY_FREEZE_PRODUCTION
+	DEF_CMD(CmdIndustryStepProduction,    CMD_DEITY | CMD_SERVER, CMDT_OTHER_MANAGEMENT      ), // CMD_INDUSTRY_STEP_PRODUCTION
+	DEF_CMD(CmdIndustrySetProduction,     CMD_DEITY | CMD_SERVER, CMDT_OTHER_MANAGEMENT      ), // CMD_INDUSTRY_SET_PRODUCTION
 };
 
 /*!

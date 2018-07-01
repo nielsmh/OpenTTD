@@ -220,6 +220,51 @@ public:
 	 * @api -ai
 	 */
 	static bool FreezeProduction(IndustryID industry_id, int32 days);
+
+	/**
+	 * Get the current actual production rate per step of an industry.
+	 * @param industry_id The index of the industry.
+	 * @param cargo_id Index of the cargo to get production rate for.
+	 * @return Production rate in units per production step, or -1 if industry or cargo were invalid.
+	 * @api -ai
+	 */
+	static int32 GetProductionRate(IndustryID industry_id, CargoID cargo_id);
+
+	/**
+	 * Change production of an industry in relative steps.
+	 * @note You should usually specify exactly one of \c expstep and \c increment and leave the other zero.
+	 * @note This command will generate generic "Industry increases/decrease production" news, without specifying percentage change.
+	 * @note If the production rate reaches zero, the industry will close down, even if production change freeze is in effect.
+	 * @param industry_id The index of the industry.
+	 * @param expstep Positive values double production that many times, negative values halve production, zero does no halving/doubling
+	 * @param increment Change production up/down in small steps
+	 * @param show_news True to show a news message as usual, false to prevent news from showing
+	 * @return True if the change was possible
+	 * @api -ai
+	 */
+	static bool ChangeProductionRate(IndustryID industry_id, int32 expstep, int32 increment, bool show_news);
+
+	/**
+	 * Set the production rate of one of the produced cargoes at an industry.
+	 * @note This command will generate "Industry changed production by percent" news messages
+	 * @note If the production rate of all cargoes reach zero, the industry will close down, even if production change freeze is in effect.
+	 * @param industry_id The index of the industry.
+	 * @param cargo_id Index of the cargo to set production rate for.
+	 * @param newrate New number of units produced per step, must be between 0 and 255.
+	 * @param show_news True to show a news message as usual, false to prevent news from showing
+	 * @return True if the change was possible
+	 * @api -ai
+	 */
+	static bool SetProductionRate(IndustryID industry_id, CargoID cargo_id, int32 newrate, bool show_news);
+
+	/**
+	 * Force an industry to announce imminent closure.
+	 * @param industry_id The index of the industry.
+	 * @param show_news True to show a news message as usual, false to prevent news from showing.
+	 * @return True if the industry existed
+	 * @api -ai
+	 */
+	static bool Close(IndustryID industry_id, bool show_news);
 };
 
 #endif /* SCRIPT_INDUSTRY_HPP */
