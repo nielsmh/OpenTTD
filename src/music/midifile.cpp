@@ -824,6 +824,8 @@ bool MidiFile::LoadSong(const MusicSongInfo &song)
 				return false;
 			}
 		}
+		case MTT_WAVE:
+			return false;
 		default:
 			NOT_REACHED();
 	}

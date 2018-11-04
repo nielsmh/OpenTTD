@@ -19,6 +19,7 @@
 #include "midifile.hpp"
 #include "midi.h"
 #include "../base_media_base.h"
+#include "../mixer.h"
 
 #include "../safeguards.h"
 
@@ -49,6 +50,92 @@ static struct {
 
 	byte channel_volumes[16]; ///< last seen volume controller values in raw data
 } _midi;
+
+static void WaveStreamProvider(int16 *buffer, size_t samples);
+static struct {
+	FILE *file;
+	size_t samplecount;
+	uint32 samplerate;
+	bool playing;
+	byte volume;
+
+	bool Open(const std::string &filename)
+	{
+		file = FioFOpenFile(filename.c_str(), "rb", Subdirectory::BASESET_DIR);
+		if (!file) return false;
+
+		static char TAG_RIFF[4] = { 'R', 'I', 'F', 'F' };
+		static char TAG_WAVE[4] = { 'W', 'A', 'V', 'E' };
+		static char TAG_fmt [4] = { 'f', 'm', 't', ' ' };
+		static char TAG_data[4] = { 'd', 'a', 't', 'a' };
+
+		char header[16] = { 0 };
+		fread(header, 4, 4, file);
+		if (MemCmpT(header, TAG_RIFF, 4) != 0 || MemCmpT(header+8, TAG_WAVE, 4) != 0 || MemCmpT(header+12, TAG_fmt, 4) != 0) {
+			return Close(), false;
+		}
+
+		uint32 chunksize;
+		fread(&chunksize, sizeof(chunksize), 1, file);
+		chunksize = (chunksize + 1) & ~1;
+		if (chunksize < 16) return Close(), false;
+
+		uint16 compression, channels, bitpersample;
+		fread(&compression, 2, 1, file);
+		fread(&channels, 2, 1, file);
+		fread(&samplerate, 4, 1, file);
+		fread(header, 6, 1, file); // junk
+		fread(&bitpersample, 2, 1, file);
+		if (compression != 1 || channels != 2 || bitpersample != 16) {
+			/* not acceptable PCM */
+			return Close(), false;
+		}
+		chunksize -= 16;
+
+		do {
+			fseek(file, chunksize, SEEK_CUR);
+			fread(header, 4, 1, file);
+			fread(&chunksize, 4, 1, file);
+			chunksize = (chunksize + 1) & ~1;
+		} while (!feof(file) && MemCmpT(header, TAG_data, 4) != 0);
+
+		// found data chunk
+		samplecount = chunksize / 4;
+		// ready to play
+		if (MxSetMusicSource(WaveStreamProvider) != samplerate) return Close(), false;
+		playing = true;
+		return true;
+	}
+
+	void Close()
+	{
+		playing = false;
+		MxSetMusicSource(NULL);
+		if (file) fclose(file);
+		file = NULL;
+	}
+
+} _wave;
+
+static void WaveStreamProvider(int16 *buffer, size_t samples)
+{
+	if (!_wave.file || !_wave.playing) return;
+	if (_wave.samplecount == 0 || feof(_wave.file)) {
+		_wave.Close();
+		return;
+	}
+	if (_wave.samplecount < samples) samples = _wave.samplecount;
+
+	fread(buffer, 4, samples, _wave.file);
+	_wave.samplecount -= samples;
+
+	for (size_t s = 0; s < samples; s++) {
+		*buffer = (int16)((int32)*buffer * _wave.volume / 127);
+		buffer++;
+		*buffer = (int16)((int32)*buffer * _wave.volume / 127);
+		buffer++;
+	}
+}
 
 static FMusicDriver_Win32 iFMusicDriver_Win32;
 
@@ -315,22 +402,22 @@ void MusicDriver_Win32::PlaySong(const MusicSongInfo &song)
 	DEBUG(driver, 2, "Win32-MIDI: PlaySong: entry");
 	EnterCriticalSection(&_midi.lock);
 
-	if (!_midi.next_file.LoadSong(song)) {
-		LeaveCriticalSection(&_midi.lock);
-		return;
-	}
+	if (song.filetype == MTT_WAVE) {
+		_midi.do_stop = _midi.playing;
+		_wave.Open(song.filename);
+	} else if (_midi.next_file.LoadSong(song)) {
+		_midi.next_segment.start = song.override_start;
+		_midi.next_segment.end = song.override_end;
+		_midi.next_segment.loop = song.loop;
 
-	_midi.next_segment.start = song.override_start;
-	_midi.next_segment.end = song.override_end;
-	_midi.next_segment.loop = song.loop;
+		DEBUG(driver, 2, "Win32-MIDI: PlaySong: setting flag");
+		_midi.do_stop = _midi.playing;
+		_midi.do_start = true;
 
-	DEBUG(driver, 2, "Win32-MIDI: PlaySong: setting flag");
-	_midi.do_stop = _midi.playing;
-	_midi.do_start = true;
-
-	if (_midi.timer_id == 0) {
-		DEBUG(driver, 2, "Win32-MIDI: PlaySong: starting timer");
-		_midi.timer_id = timeSetEvent(_midi.time_period, _midi.time_period, TimerCallback, (DWORD_PTR)this, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+		if (_midi.timer_id == 0) {
+			DEBUG(driver, 2, "Win32-MIDI: PlaySong: starting timer");
+			_midi.timer_id = timeSetEvent(_midi.time_period, _midi.time_period, TimerCallback, (DWORD_PTR)this, TIME_PERIODIC | TIME_CALLBACK_FUNCTION);
+		}
 	}
 
 	LeaveCriticalSection(&_midi.lock);
@@ -342,18 +429,20 @@ void MusicDriver_Win32::StopSong()
 	EnterCriticalSection(&_midi.lock);
 	DEBUG(driver, 2, "Win32-MIDI: StopSong: setting flag");
 	_midi.do_stop = true;
+	_wave.Close();
 	LeaveCriticalSection(&_midi.lock);
 }
 
 bool MusicDriver_Win32::IsSongPlaying()
 {
-	return _midi.playing || _midi.do_start;
+	return _wave.playing || _midi.playing || _midi.do_start;
 }
 
 void MusicDriver_Win32::SetVolume(byte vol)
 {
 	EnterCriticalSection(&_midi.lock);
 	_midi.new_volume = vol;
+	_wave.volume = vol;
 	LeaveCriticalSection(&_midi.lock);
 }
 
@@ -362,6 +451,7 @@ const char *MusicDriver_Win32::Start(const char * const *parm)
 	DEBUG(driver, 2, "Win32-MIDI: Start: initializing");
 
 	InitializeCriticalSection(&_midi.lock);
+	_wave.Close();
 
 	int resolution = GetDriverParamInt(parm, "resolution", 5);
 	int port = GetDriverParamInt(parm, "port", -1);
@@ -406,6 +496,7 @@ const char *MusicDriver_Win32::Start(const char * const *parm)
 void MusicDriver_Win32::Stop()
 {
 	EnterCriticalSection(&_midi.lock);
+	_wave.Close();
 
 	if (_midi.timer_id) {
 		timeKillEvent(_midi.timer_id);

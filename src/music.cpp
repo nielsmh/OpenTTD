@@ -16,6 +16,7 @@
 #define SET_TYPE "music"
 #include "base_media_func.h"
 
+#include "music/midifile.hpp"
 #include "safeguards.h"
 #include "fios.h"
 
@@ -128,9 +129,10 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 		IniGroup *timingtrim = ini->GetGroup("timingtrim");
 		uint tracknr = 1;
 		for (uint i = 0; i < lengthof(this->songinfo); i++) {
+			this->songinfo[i].songname[0] = '\0';
+
 			const char *filename = this->files[i].filename;
 			if (names == NULL || StrEmpty(filename) || this->files[i].check_result == MD5File::CR_NO_FILE) {
-				this->songinfo[i].songname[0] = '\0';
 				continue;
 			}
 
@@ -144,13 +146,17 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 				char *songname = GetMusicCatEntryName(filename, this->songinfo[i].cat_index);
 				if (songname == NULL) {
 					DEBUG(grf, 0, "Base music set song missing from CAT file: %s/%d", filename, this->songinfo[i].cat_index);
-					this->songinfo[i].songname[0] = '\0';
 					continue;
 				}
 				strecpy(this->songinfo[i].songname, songname, lastof(this->songinfo[i].songname));
 				free(songname);
 			} else {
-				this->songinfo[i].filetype = MTT_STANDARDMIDI;
+				SMFHeader smfheader;
+				if (MidiFile::ReadSMFHeader(filename, smfheader)) {
+					this->songinfo[i].filetype = MTT_STANDARDMIDI;
+				} else {
+					this->songinfo[i].filetype = MTT_WAVE;
+				}
 			}
 
 			const char *trimmed_filename = filename;
@@ -166,7 +172,7 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 				if (item != NULL && !StrEmpty(item->value)) break;
 			}
 
-			if (this->songinfo[i].filetype == MTT_STANDARDMIDI) {
+			if (this->songinfo[i].songname[0] == '\0') {
 				if (item != NULL && !StrEmpty(item->value)) {
 					strecpy(this->songinfo[i].songname, item->value, lastof(this->songinfo[i].songname));
 				} else {
