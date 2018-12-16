@@ -1,50 +1,60 @@
 
-pool:
-  vmImage: 'VS2017-Win2016'
+jobs:
+- job: 'windows'
+  pool:
+    vmImage: 'VS2017-Win2016'
+  variables:
+    solution: 'projects/openttd_vs141.sln'
+    buildConfiguration: 'Release'
+    dependenciesSource: 'https://github.com/nielsmh/OpenTTD-deps.git'
+    dependenciesRevision: 'cf6e5ec1dc135153583cc42ac0c33bad4f8bceaa'
+  strategy:
+    matrix:
+      Win32:
+        buildPlatform: 'Win32'
+        buildPublishPlatform: 'Win32'
+      Win64:
+        buildPlatform: 'x64'
+        buildPublishPlatform: 'Win64'
+  steps:
+  - bash: |
+      . findversion.sh > .ottdrev
+    displayName: Get build version
+  - script: |
+      mkdir dep
+      cd dep
+      git clone $(dependenciesSource) .
+      git checkout $(dependenciesRevision)
+    displayName: 'Get static dependencies'
+  - task: CopyFiles@2
+    displayName: 'Configure static dependencies'
+    inputs:
+      sourceFolder: 'dep'
+      targetFolder: 'projects'
+      contents: 'openttd_vs141.vcxproj.user'
+  - task: VSBuild@1
+    inputs:
+      solution: '$(solution)'
+      platform: '$(buildPlatform)'
+      configuration: '$(buildConfiguration)'
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: 'bin'
+      includeRootFolder: false
+      archiveType: '7z'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/OpenTTD-$(buildPublishPlatform).$(Build.SourceVersion).$(Build.BuildId).7z'
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: '$(buildPublishPlatform)-bin'
+      targetPath: '$(Build.ArtifactStagingDirectory)'
 
-variables:
-  solution: 'projects/openttd_vs141.sln'
-  buildConfiguration: 'Release'
-  dependenciesSource: 'https://github.com/nielsmh/OpenTTD-deps.git'
-  dependenciesRevision: 'cf6e5ec1dc135153583cc42ac0c33bad4f8bceaa'
-
-strategy:
-  matrix:
-    Win32:
-      buildPlatform: 'Win32'
-      buildPublishPlatform: 'Win32'
-    Win64:
-      buildPlatform: 'x64'
-      buildPublishPlatform: 'Win64'
-
-steps:
-- bash: |
-    . findversion.sh > .ottdrev
-  displayName: Get build version
-- script: |
-    mkdir dep
-    cd dep
-    git clone $(dependenciesSource) .
-    git checkout $(dependenciesRevision)
-  displayName: 'Get static dependencies'
-- task: CopyFiles@2
-  displayName: 'Configure static dependencies'
-  inputs:
-    sourceFolder: 'dep'
-    targetFolder: 'projects'
-    contents: 'openttd_vs141.vcxproj.user'
-- task: VSBuild@1
-  inputs:
-    solution: '$(solution)'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: 'bin'
-    includeRootFolder: false
-    archiveType: '7z'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/OpenTTD-$(buildPublishPlatform).$(Build.SourceVersion).$(Build.BuildId).7z'
-- task: PublishPipelineArtifact@0
-  inputs:
-    artifactName: '$(buildPublishPlatform)-bin'
-    targetPath: '$(Build.ArtifactStagingDirectory)'
+- job: 'linux'
+  pool:
+    vmImage: 'ubuntu-16.04'
+  steps:
+  - script: 'sudo apt-get install libsdl-dev liblzo2-dev zlib1g-dev liblzma-dev libpng12-dev'
+    displayName: 'Install dependencies'
+  - script: './configure'
+    displayName: 'Configure'
+  - script: 'make'
+    displayName: 'Build'
