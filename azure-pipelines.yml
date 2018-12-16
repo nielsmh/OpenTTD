@@ -1,0 +1,25 @@
+
+pool:
+  vmImage: 'VS2017-Win2016'
+
+variables:
+  solution: 'projects/openttd_vs141.sln'
+  buildPlatform: 'x64'
+  buildConfiguration: 'Release'
+  dependenciesRevision: 'f811d53ae7db3b515917e7a4823e067971c2c56f'
+
+steps:
+- script: |
+    mkdir dep
+    cd dep
+    git clone https://github.com/nielsmh/OpenTTD-deps.git .
+    git checkout $(dependenciesRevision)
+- task: VSBuild@1
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    msbuildArgs: '/p:IncludePath=..\dep\shared\include /p:LibraryPath=..\dep\win64\library'
+
