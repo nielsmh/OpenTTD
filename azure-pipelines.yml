@@ -14,7 +14,7 @@ steps:
     cd dep
     git clone https://github.com/nielsmh/OpenTTD-deps.git .
     git checkout $(dependenciesRevision)
-- task: CopyFiles@1
+- task: CopyFiles@2
   inputs:
     sourceFolder: 'dep'
     targetFolder: 'projects'
@@ -24,4 +24,13 @@ steps:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
-
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: 'bin'
+    includeRootFolder: false
+    archiveType: '7z'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).7z'
+- task: PublishPipelineArtifact@0
+  inputs:
+    artifactName: 'win64-bin'
+    targetPath: '$(Build.ArtifactStagingDirectory)'
