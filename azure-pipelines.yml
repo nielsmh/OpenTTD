@@ -1,6 +1,7 @@
 
 jobs:
 - job: 'windows'
+  displayName: 'Windows build'
   pool:
     vmImage: 'VS2017-Win2016'
   variables:
@@ -49,12 +50,23 @@ jobs:
       targetPath: '$(Build.ArtifactStagingDirectory)'
 
 - job: 'linux'
+  displayName: 'Linux build'
   pool:
     vmImage: 'ubuntu-16.04'
   steps:
-  - script: 'sudo apt-get install libsdl-dev liblzo2-dev zlib1g-dev liblzma-dev libpng12-dev'
+  - script: 'sudo apt-get install libsdl-dev liblzo2-dev zlib1g-dev liblzma-dev libpng12-dev libfluidsynth-dev'
     displayName: 'Install dependencies'
   - script: './configure'
+    displayName: 'Configure'
+  - script: 'make'
+    displayName: 'Build'
+
+- job: 'macos'
+  displayName: 'macOS build'
+  pool:
+    vmImage: 'macOS-10.13'
+  steps:
+  - script: './configure --without-liblzma --without-liblzo2 --without-png'
     displayName: 'Configure'
   - script: 'make'
     displayName: 'Build'
