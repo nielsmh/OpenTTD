@@ -9,14 +9,16 @@ variables:
   dependenciesRevision: 'cf6e5ec1dc135153583cc42ac0c33bad4f8bceaa'
 
 steps:
-- script: |
+- bash: |
     mkdir dep
     cd dep
     git clone https://github.com/nielsmh/OpenTTD-deps.git .
     git checkout $(dependenciesRevision)
-    copy openttd_vs141.vcxproj.user ../projects/
-- task: VSBuild@1
-
+- task: CopyFiles@1
+  inputs:
+    sourceFolder: 'dep'
+    targetFolder: 'projects'
+    contents: 'openttd_vs141.vcxproj.user'
 - task: VSBuild@1
   inputs:
     solution: '$(solution)'
