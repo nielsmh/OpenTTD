@@ -21,5 +21,5 @@ steps:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
-    msbuildArgs: '/p:IncludePath=../dep/shared/include /p:LibraryPath=../dep/win64/library'
+    msbuildArgs: '/p:AdditionalIncludeDirectories=../dep/shared/include /p:AdditionalLibraryDirectories=../dep/win64/library'
 
