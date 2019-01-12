@@ -67,6 +67,7 @@
 #include "viewport_func.h"
 #include "station_base.h"
 #include "waypoint_base.h"
+#include "depot_base.h"
 #include "town.h"
 #include "signs_base.h"
 #include "signs_func.h"
@@ -1239,6 +1240,22 @@ static Rect ExpandRectWithViewportSignMargins(Rect r, ZoomLevel zoom)
 	return r;
 }
 
+static void ViewportAddDepotNames(DrawPixelInfo *dpi)
+{
+	if (_game_mode == GM_MENU) return;
+
+	const Depot *d;
+	FOR_ALL_DEPOTS(d) {
+		/* Only show depot name after the depot is removed. */
+		if (d->IsInUse()) continue;
+		/* Don't draw if depot is owned by another company and competitor signs are hidden. */
+		if (!HasBit(_display_opt, DO_SHOW_COMPETITOR_SIGNS) && _local_company != d->owner) continue;
+
+		ViewportAddString(dpi, ZOOM_LVL_OUT_16X, &d->sign, STR_VIEWPORT_DEPOT,
+				STR_VIEWPORT_DEPOT_TINY, STR_NULL, d->type, d->index, COLOUR_GREY);
+	}
+}
+
 static void ViewportAddKdtreeSigns(DrawPixelInfo *dpi)
 {
 	Rect search_rect{ dpi->left, dpi->top, dpi->left + dpi->width, dpi->top + dpi->height };
@@ -1579,6 +1596,7 @@ void ViewportDoDraw(const ViewPort *vp, int left, int top, int right, int bottom
 	ViewportAddVehicles(&_vd.dpi);
 
 	ViewportAddKdtreeSigns(&_vd.dpi);
+	ViewportAddDepotNames(&_vd.dpi);
 
 	DrawTextEffects(&_vd.dpi);
 

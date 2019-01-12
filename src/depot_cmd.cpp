@@ -15,6 +15,8 @@
 #include "company_func.h"
 #include "date_func.h"
 #include "string_func.h"
+#include "strings_func.h"
+#include "landscape.h"
 #include "town.h"
 #include "vehicle_gui.h"
 #include "vehiclelist.h"
@@ -108,6 +110,28 @@ CommandCost CmdRenameDepot(TileIndex tile, DoCommandFlag flags, uint32 p1, uint3
 		SetWindowDirty(GetWindowClassForVehicleType(d->type), VehicleListIdentifier(VL_DEPOT_LIST, d->type, d->owner, d->index).Pack());
 	}
 	return CommandCost();
+}
+
+/** Update the virtual coords needed to draw the depot sign. */
+void Depot::UpdateVirtCoord()
+{
+	Point pt = RemapCoords2(TileX(this->xy) * TILE_SIZE, TileY(this->xy) * TILE_SIZE);
+
+	pt.y -= 32 * ZOOM_LVL_BASE;
+
+	SetDParam(0, this->type);
+	SetDParam(1, this->index);
+	this->sign.UpdatePosition(pt.x, pt.y, STR_VIEWPORT_DEPOT, STR_VIEWPORT_DEPOT_TINY);
+
+	SetWindowDirty(WC_VEHICLE_DEPOT, this->index);
+}
+
+/** Update the virtual coords needed to draw the depot sign for all depots. */
+void UpdateAllDepotVirtCoords()
+{
+	/* Only demolished depots have signs. */
+	Depot *d;
+	FOR_ALL_DEPOTS(d) if (!d->IsInUse()) d->UpdateVirtCoord();
 }
 
 void OnTick_Depot()

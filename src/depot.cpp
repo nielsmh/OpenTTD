@@ -34,6 +34,9 @@ Depot::~Depot()
 
 	/* Clear the depot from all order-lists */
 	RemoveOrderFromAllVehicles(OT_GOTO_DEPOT, this->index);
+
+	/* The sign will now disappear. */
+	this->sign.MarkDirty();
 }
 
 /**
@@ -67,4 +70,7 @@ void Depot::Disuse()
 			v->dest_tile = v->GetOrderDepotLocation(this->index);
 		}
 	}
+
+	/* Update the sign, it will be visible from now. */
+	this->UpdateVirtCoord();
 }
