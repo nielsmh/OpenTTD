@@ -25,6 +25,7 @@ struct Depot : DepotPool::PoolItem<&_depot_pool> {
 	TileIndex xy;
 	uint16 town_cn;    ///< The N-1th depot for this town (consecutive number)
 	Date build_date;   ///< Date of construction
+	byte delete_ctr;   ///< Delete counter. If greater than 0 then it is decremented until it reaches 0; the depot is then deleted.
 
 	Depot(TileIndex xy = INVALID_TILE) : xy(xy) {}
 	~Depot();
@@ -42,8 +43,23 @@ struct Depot : DepotPool::PoolItem<&_depot_pool> {
 	 */
 	inline bool IsOfType(const Depot *d) const
 	{
-		return GetTileType(d->xy) == GetTileType(this->xy);
+		return d->type == this->type;
 	}
+
+	/**
+	 * Check whether the depot currently is in use; in use means
+	 * that it is not scheduled for deletion and that it still has
+	 * a building on the map. Otherwise the building is demolished
+	 * and the depot awaits to be deleted.
+	 * @return true iff still in use
+	 * @see Depot::Disuse
+	 */
+	inline bool IsInUse() const
+	{
+		return this->delete_ctr == 0;
+	}
+
+	void Disuse();
 };
 
 #define FOR_ALL_DEPOTS_FROM(var, start) FOR_ALL_ITEMS_FROM(Depot, depot_index, var, start)
