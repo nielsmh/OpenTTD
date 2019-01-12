@@ -31,8 +31,8 @@
 #include "opl.h"
 
 
-static fltype recipsamp;	// inverse of sampling rate
-static Bit16s wavtable[WAVEPREC*3];	// wave form table
+static fltype recipsamp;            // inverse of sampling rate
+static Bit16s wavtable[WAVEPREC*3]; // wave form table
 
 // vibrato/tremolo tables
 static Bit32s vib_table[VIBTAB_SIZE];
@@ -44,8 +44,6 @@ static Bit32s tremval_const[BLOCKBUF_SIZE];
 // vibrato value tables (used per-operator)
 static Bit32s vibval_var1[BLOCKBUF_SIZE];
 static Bit32s vibval_var2[BLOCKBUF_SIZE];
-//static Bit32s vibval_var3[BLOCKBUF_SIZE];
-//static Bit32s vibval_var4[BLOCKBUF_SIZE];
 
 // vibrato/trmolo value table pointers
 static Bit32s *vibval1, *vibval2, *vibval3, *vibval4;
@@ -54,7 +52,7 @@ static Bit32s *tremval1, *tremval2, *tremval3, *tremval4;
 
 // key scale level lookup table
 static const fltype kslmul[4] = {
-	0.0, 0.5, 0.25, 1.0		// -> 0, 3, 1.5, 6 dB/oct
+	0.0, 0.5, 0.25, 1.0  // -> 0, 3, 1.5, 6 dB/oct
 };
 
 // frequency multiplicator lookup table
@@ -77,12 +75,12 @@ static const Bit8u modulatorbase[9]	= {
 // map a register base to a modulator operator number or operator number
 #if defined(OPLTYPE_IS_OPL3)
 static const Bit8u regbase2modop[44] = {
-	0,1,2,0,1,2,0,0,3,4,5,3,4,5,0,0,6,7,8,6,7,8,					// first set
-	18,19,20,18,19,20,0,0,21,22,23,21,22,23,0,0,24,25,26,24,25,26	// second set
+	0,1,2,0,1,2,0,0,3,4,5,3,4,5,0,0,6,7,8,6,7,8,                    // first set
+	18,19,20,18,19,20,0,0,21,22,23,21,22,23,0,0,24,25,26,24,25,26   // second set
 };
 static const Bit8u regbase2op[44] = {
-	0,1,2,9,10,11,0,0,3,4,5,12,13,14,0,0,6,7,8,15,16,17,			// first set
-	18,19,20,27,28,29,0,0,21,22,23,30,31,32,0,0,24,25,26,33,34,35	// second set
+	0,1,2,9,10,11,0,0,3,4,5,12,13,14,0,0,6,7,8,15,16,17,            // first set
+	18,19,20,27,28,29,0,0,21,22,23,30,31,32,0,0,24,25,26,33,34,35   // second set
 };
 #else
 static const Bit8u regbase2modop[22] = {
@@ -146,7 +144,7 @@ static fltype decrelconst[4] = {
 
 
 void operator_advance(op_type* op_pt, Bit32s vib) {
-	op_pt->wfpos = op_pt->tcount;						// waveform position
+	op_pt->wfpos = op_pt->tcount; // waveform position
 	
 	// advance waveform time
 	op_pt->tcount += op_pt->tinc;
@@ -166,7 +164,7 @@ void operator_advance_drums(op_type* op_pt1, Bit32s vib1, op_type* op_pt2, Bit32
 
 	//Hihat
 	Bit32u inttm = (phasebit<<8) | (0x34<<(phasebit ^ (noisebit<<1)));
-	op_pt1->wfpos = inttm*FIXEDPT;				// waveform position
+	op_pt1->wfpos = inttm*FIXEDPT; // waveform position
 	// advance waveform time
 	op_pt1->tcount += op_pt1->tinc;
 	op_pt1->tcount += (Bit32s)(op_pt1->tinc)*vib1/FIXEDPT;
@@ -174,7 +172,7 @@ void operator_advance_drums(op_type* op_pt1, Bit32s vib1, op_type* op_pt2, Bit32
 
 	//Snare
 	inttm = ((1+snare_phase_bit) ^ noisebit)<<8;
-	op_pt2->wfpos = inttm*FIXEDPT;				// waveform position
+	op_pt2->wfpos = inttm*FIXEDPT; // waveform position
 	// advance waveform time
 	op_pt2->tcount += op_pt2->tinc;
 	op_pt2->tcount += (Bit32s)(op_pt2->tinc)*vib2/FIXEDPT;
@@ -182,7 +180,7 @@ void operator_advance_drums(op_type* op_pt1, Bit32s vib1, op_type* op_pt2, Bit32
 
 	//Cymbal
 	inttm = (1+phasebit)<<8;
-	op_pt3->wfpos = inttm*FIXEDPT;				// waveform position
+	op_pt3->wfpos = inttm*FIXEDPT; // waveform position
 	// advance waveform time
 	op_pt3->tcount += op_pt3->tinc;
 	op_pt3->tcount += (Bit32s)(op_pt3->tinc)*vib3/FIXEDPT;
@@ -214,7 +212,7 @@ void operator_off(op_type* /*op_pt*/) {
 // output level is sustained, mode changes only when operator is turned off (->release)
 // or when the keep-sustained bit is turned off (->sustain_nokeep)
 void operator_sustain(op_type* op_pt) {
-	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
+	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT; // number of (standardized) samples
 	for (Bit32u ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;
 	}
@@ -229,9 +227,9 @@ void operator_release(op_type* op_pt) {
 		op_pt->amp *= op_pt->releasemul;
 	}
 
-	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
+	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT; // number of (standardized) samples
 	for (Bit32u ct=0; ct<num_steps_add; ct++) {
-		op_pt->cur_env_step++;						// sample counter
+		op_pt->cur_env_step++; // sample counter
 		if ((op_pt->cur_env_step & op_pt->env_step_r)==0) {
 			if (op_pt->amp <= 0.00000001) {
 				// release phase finished, turn off this operator
@@ -254,7 +252,7 @@ void operator_decay(op_type* op_pt) {
 		op_pt->amp *= op_pt->decaymul;
 	}
 
-	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;	// number of (standardized) samples
+	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT; // number of (standardized) samples
 	for (Bit32u ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;
 		if ((op_pt->cur_env_step & op_pt->env_step_d)==0) {
@@ -280,10 +278,10 @@ void operator_decay(op_type* op_pt) {
 void operator_attack(op_type* op_pt) {
 	op_pt->amp = ((op_pt->a3*op_pt->amp + op_pt->a2)*op_pt->amp + op_pt->a1)*op_pt->amp + op_pt->a0;
 
-	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT;		// number of (standardized) samples
+	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT; // number of (standardized) samples
 	for (Bit32u ct=0; ct<num_steps_add; ct++) {
 		op_pt->cur_env_step++;	// next sample
-		if ((op_pt->cur_env_step & op_pt->env_step_a)==0) {		// check if next step already reached
+		if ((op_pt->cur_env_step & op_pt->env_step_a)==0) { // check if next step already reached
 			if (op_pt->amp > 1.0) {
 				// attack phase finished, next: decay
 				op_pt->op_state = OF_TYPE_DEC;
@@ -292,7 +290,7 @@ void operator_attack(op_type* op_pt) {
 			}
 			op_pt->step_skip_pos_a <<= 1;
 			if (op_pt->step_skip_pos_a==0) op_pt->step_skip_pos_a = 1;
-			if (op_pt->step_skip_pos_a & op_pt->env_step_skip_a) {	// check if required to skip next step
+			if (op_pt->step_skip_pos_a & op_pt->env_step_skip_a) { // check if required to skip next step
 				op_pt->step_amp = op_pt->amp;
 			}
 		}
@@ -307,8 +305,8 @@ optype_fptr opfuncs[6] = {
 	operator_attack,
 	operator_decay,
 	operator_release,
-	operator_sustain,	// sustain phase (keeping level)
-	operator_release,	// sustain_nokeep phase (release-style)
+	operator_sustain,  // sustain phase (keeping level)
+	operator_release,  // sustain_nokeep phase (release-style)
 	operator_off
 };
 
@@ -335,7 +333,7 @@ void change_attackrate(Bitu regbase, op_type* op_pt) {
 #else
 		if (step_skip>=62) {
 #endif
-			op_pt->a0 = (fltype)(2.0);	// something that triggers an immediate transition to amp:=1.0
+			op_pt->a0 = (fltype)(2.0); // something that triggers an immediate transition to amp:=1.0
 			op_pt->a1 = (fltype)(0.0);
 			op_pt->a2 = (fltype)(0.0);
 			op_pt->a3 = (fltype)(0.0);
@@ -391,7 +389,7 @@ void change_sustainlevel(Bitu regbase, op_type* op_pt) {
 
 void change_waveform(Bitu regbase, op_type* op_pt) {
 #if defined(OPLTYPE_IS_OPL3)
-	if (regbase>=ARC_SECONDSET) regbase -= (ARC_SECONDSET-22);	// second set starts at 22
+	if (regbase>=ARC_SECONDSET) regbase -= (ARC_SECONDSET-22); // second set starts at 22
 #endif
 	// waveform selection
 	op_pt->cur_wmask = wavemask[wave_sel[regbase]];
@@ -453,7 +451,7 @@ void enable_operator(Bitu regbase, op_type* op_pt, Bit32u act_type) {
 	// check if this is really an off-on transition
 	if (op_pt->act_state == OP_ACT_OFF) {
 		Bits wselbase = regbase;
-		if (wselbase>=ARC_SECONDSET) wselbase -= (ARC_SECONDSET-22);	// second set starts at 22
+		if (wselbase>=ARC_SECONDSET) wselbase -= (ARC_SECONDSET-22); // second set starts at 22
 
 		op_pt->tcount = wavestart[wave_sel[wselbase]]*FIXEDPT;
 
@@ -539,14 +537,14 @@ void adlib_init(Bit32u samplerate) {
 
 	// create tremolo table
 	Bit32s trem_table_int[TREMTAB_SIZE];
-	for (i=0; i<14; i++)	trem_table_int[i] = i-13;		// upwards (13 to 26 -> -0.5/6 to 0)
-	for (i=14; i<41; i++)	trem_table_int[i] = -i+14;		// downwards (26 to 0 -> 0 to -1/6)
-	for (i=41; i<53; i++)	trem_table_int[i] = i-40-26;	// upwards (1 to 12 -> -1/6 to -0.5/6)
+	for (i=0; i<14; i++)  trem_table_int[i] = i-13;    // upwards (13 to 26 -> -0.5/6 to 0)
+	for (i=14; i<41; i++) trem_table_int[i] = -i+14;   // downwards (26 to 0 -> 0 to -1/6)
+	for (i=41; i<53; i++) trem_table_int[i] = i-40-26; // upwards (1 to 12 -> -1/6 to -0.5/6)
 
 	for (i=0; i<TREMTAB_SIZE; i++) {
 		// 0.0 .. -26/26*4.8/6 == [0.0 .. -0.8], 4/53 steps == [1 .. 0.57]
-		fltype trem_val1=(fltype)(((fltype)trem_table_int[i])*4.8/26.0/6.0);				// 4.8db
-		fltype trem_val2=(fltype)((fltype)((Bit32s)(trem_table_int[i]/4))*1.2/6.0/6.0);		// 1.2db (larger stepping)
+		fltype trem_val1=(fltype)(((fltype)trem_table_int[i])*4.8/26.0/6.0);            // 4.8db
+		fltype trem_val2=(fltype)((fltype)((Bit32s)(trem_table_int[i]/4))*1.2/6.0/6.0); // 1.2db (larger stepping)
 
 		trem_table[i] = (Bit32s)(pow(FL2,trem_val1)*FIXEDPT);
 		trem_table[TREMTAB_SIZE+i] = (Bit32s)(pow(FL2,trem_val2)*FIXEDPT);
@@ -565,22 +563,18 @@ void adlib_init(Bit32u samplerate) {
 
 		// create waveform tables
 		for (i=0;i<(WAVEPREC>>1);i++) {
-			wavtable[(i<<1)  +WAVEPREC]	= (Bit16s)(16384*sin((fltype)((i<<1)  )*PI*2/WAVEPREC));
-			wavtable[(i<<1)+1+WAVEPREC]	= (Bit16s)(16384*sin((fltype)((i<<1)+1)*PI*2/WAVEPREC));
-			wavtable[i]					= wavtable[(i<<1)  +WAVEPREC];
-			// alternative: (zero-less)
-/*			wavtable[(i<<1)  +WAVEPREC]	= (Bit16s)(16384*sin((fltype)((i<<2)+1)*PI/WAVEPREC));
-			wavtable[(i<<1)+1+WAVEPREC]	= (Bit16s)(16384*sin((fltype)((i<<2)+3)*PI/WAVEPREC));
-			wavtable[i]					= wavtable[(i<<1)-1+WAVEPREC]; */
+			wavtable[(i<<1)  +WAVEPREC] = (Bit16s)(16384*sin((fltype)((i<<1)  )*PI*2/WAVEPREC));
+			wavtable[(i<<1)+1+WAVEPREC] = (Bit16s)(16384*sin((fltype)((i<<1)+1)*PI*2/WAVEPREC));
+			wavtable[i]                 = wavtable[(i<<1)  +WAVEPREC];
 		}
 		for (i=0;i<(WAVEPREC>>3);i++) {
-			wavtable[i+(WAVEPREC<<1)]		= wavtable[i+(WAVEPREC>>3)]-16384;
-			wavtable[i+((WAVEPREC*17)>>3)]	= wavtable[i+(WAVEPREC>>2)]+16384;
+			wavtable[i+(WAVEPREC<<1)]       = wavtable[i+(WAVEPREC>>3)]-16384;
+			wavtable[i+((WAVEPREC*17)>>3)] = wavtable[i+(WAVEPREC>>2)]+16384;
 		}
 
 		// key scale level table verified ([table in book]*8/3)
-		kslev[7][0] = 0;	kslev[7][1] = 24;	kslev[7][2] = 32;	kslev[7][3] = 37;
-		kslev[7][4] = 40;	kslev[7][5] = 43;	kslev[7][6] = 45;	kslev[7][7] = 47;
+		kslev[7][0] = 0;  kslev[7][1] = 24; kslev[7][2] = 32; kslev[7][3] = 37;
+		kslev[7][4] = 40; kslev[7][5] = 43; kslev[7][6] = 45; kslev[7][7] = 47;
 		kslev[7][8] = 48;
 		for (i=9;i<16;i++) kslev[7][i] = (Bit8u)(i+41);
 		for (j=6;j>=0;j--) {
@@ -604,8 +598,8 @@ void adlib_write(Bitu idx, Bit8u val) {
 	case ARC_CONTROL:
 		// here we check for the second set registers, too:
 		switch (idx) {
-		case 0x02:	// timer1 counter
-		case 0x03:	// timer2 counter
+		case 0x02: // timer1 counter
+		case 0x03: // timer2 counter
 			break;
 		case 0x04:
 			// IRQ reset, timer mask/start
@@ -759,7 +753,7 @@ void adlib_write(Bitu idx, Bit8u val) {
 			if (second_set) return;
 #endif
 
-			if ((val&0x30) == 0x30) {		// BassDrum active
+			if ((val&0x30) == 0x30) { // BassDrum active
 				enable_operator(16,&op[6],OP_ACT_PERC);
 				change_frequency(6,16,&op[6]);
 				enable_operator(16+3,&op[6+9],OP_ACT_PERC);
@@ -768,25 +762,25 @@ void adlib_write(Bitu idx, Bit8u val) {
 				disable_operator(&op[6],OP_ACT_PERC);
 				disable_operator(&op[6+9],OP_ACT_PERC);
 			}
-			if ((val&0x28) == 0x28) {		// Snare active
+			if ((val&0x28) == 0x28) { // Snare active
 				enable_operator(17+3,&op[16],OP_ACT_PERC);
 				change_frequency(7,17+3,&op[16]);
 			} else {
 				disable_operator(&op[16],OP_ACT_PERC);
 			}
-			if ((val&0x24) == 0x24) {		// TomTom active
+			if ((val&0x24) == 0x24) { // TomTom active
 				enable_operator(18,&op[8],OP_ACT_PERC);
 				change_frequency(8,18,&op[8]);
 			} else {
 				disable_operator(&op[8],OP_ACT_PERC);
 			}
-			if ((val&0x22) == 0x22) {		// Cymbal active
+			if ((val&0x22) == 0x22) { // Cymbal active
 				enable_operator(18+3,&op[8+9],OP_ACT_PERC);
 				change_frequency(8,18+3,&op[8+9]);
 			} else {
 				disable_operator(&op[8+9],OP_ACT_PERC);
 			}
-			if ((val&0x21) == 0x21) {		// Hihat active
+			if ((val&0x21) == 0x21) { // Hihat active
 				enable_operator(17,&op[7],OP_ACT_PERC);
 				change_frequency(7,17,&op[7]);
 			} else {
@@ -807,8 +801,8 @@ void adlib_write(Bitu idx, Bit8u val) {
 
 			if (val&32) {
 				// operator switched on
-				enable_operator(modbase,&op[opbase],OP_ACT_NORMAL);		// modulator (if 2op)
-				enable_operator(modbase+3,&op[opbase+9],OP_ACT_NORMAL);	// carrier (if 2op)
+				enable_operator(modbase,&op[opbase],OP_ACT_NORMAL);     // modulator (if 2op)
+				enable_operator(modbase+3,&op[opbase+9],OP_ACT_NORMAL); // carrier (if 2op)
 #if defined(OPLTYPE_IS_OPL3)
 				// for 4op channels all four operators are switched on
 				if ((adlibreg[0x105]&1) && op[opbase].is_4op) {
@@ -869,9 +863,9 @@ void adlib_write(Bitu idx, Bit8u val) {
 		Bitu base = (idx-ARC_WAVE_SEL)&0xff;
 		if ((num<6) && (base<22)) {
 #if defined(OPLTYPE_IS_OPL3)
-			Bits wselbase = second_set?(base+22):base;	// for easier mapping onto wave_sel[]
+			Bits wselbase = second_set?(base+22):base; // for easier mapping onto wave_sel[]
 			// change waveform
-			if (adlibreg[0x105]&1) wave_sel[wselbase] = val&7;	// opl3 mode enabled, all waveforms accessible
+			if (adlibreg[0x105]&1) wave_sel[wselbase] = val&7; // opl3 mode enabled, all waveforms accessible
 			else wave_sel[wselbase] = val&3;
 			op_type* op_ptr = &op[regbase2modop[wselbase]+((num<3) ? 0 : 9)];
 			change_waveform(wselbase,op_ptr);
@@ -937,15 +931,15 @@ static void OPL_INLINE clipit16(Bit32s ival, Bit16s* outval) {
 // for opl3 check if opl3-mode is enabled (which uses stereo panning)
 #undef CHANVAL_OUT
 #if defined(OPLTYPE_IS_OPL3)
-#define CHANVAL_OUT									\
-	if (adlibreg[0x105]&1) {						\
-		outbufl[i] += chanval*cptr[0].left_pan;		\
-		outbufr[i] += chanval*cptr[0].right_pan;	\
-	} else {										\
-		outbufl[i] += chanval;						\
+#define CHANVAL_OUT                               \
+	if (adlibreg[0x105]&1) {                      \
+		outbufl[i] += chanval*cptr[0].left_pan;   \
+		outbufr[i] += chanval*cptr[0].right_pan;  \
+	} else {                                      \
+		outbufl[i] += chanval;                    \
 	}
 #else
-#define CHANVAL_OUT									\
+#define CHANVAL_OUT                               \
 	outbufl[i] += chanval;
 #endif
 
@@ -976,12 +970,12 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 #endif
 
 		// calculate vibrato/tremolo lookup tables
-		Bit32s vib_tshift = ((adlibreg[ARC_PERC_MODE]&0x40)==0) ? 1 : 0;	// 14cents/7cents switching
+		Bit32s vib_tshift = ((adlibreg[ARC_PERC_MODE]&0x40)==0) ? 1 : 0; // 14cents/7cents switching
 		for (i=0;i<endsamples;i++) {
 			// cycle through vibrato table
 			vibtab_pos += vibtab_add;
 			if (vibtab_pos/FIXEDPT_LFO>=VIBTAB_SIZE) vibtab_pos-=VIBTAB_SIZE*FIXEDPT_LFO;
-			vib_lut[i] = vib_table[vibtab_pos/FIXEDPT_LFO]>>vib_tshift;		// 14cents (14/100 of a semitone) or 7cents
+			vib_lut[i] = vib_table[vibtab_pos/FIXEDPT_LFO]>>vib_tshift; // 14cents (14/100 of a semitone) or 7cents
 
 			// cycle through tremolo table
 			tremtab_pos += tremtab_add;
@@ -1001,7 +995,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						for (i=0;i<endsamples;i++)
 							vibval1[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 					} else vibval1 = vibval_const;
-					if (cptr[9].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+					if (cptr[9].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 					else tremval1 = tremval_const;
 
 					// calculate channel output
@@ -1027,9 +1021,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						for (i=0;i<endsamples;i++)
 							vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 					} else vibval2 = vibval_const;
-					if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+					if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 					else tremval1 = tremval_const;
-					if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+					if (cptr[9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 					else tremval2 = tremval_const;
 
 					// calculate channel output
@@ -1057,13 +1051,13 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						vibval3[i] = (Bit32s)((vib_lut[i]*cptr[0].freq_high/8)*FIXEDPT*VIBFAC);
 				} else vibval3 = vibval_const;
 
-				if (cptr[0].tremolo) tremval3 = trem_lut;	// tremolo enabled, use table
+				if (cptr[0].tremolo) tremval3 = trem_lut; // tremolo enabled, use table
 				else tremval3 = tremval_const;
 
 				// calculate channel output
 				for (i=0;i<endsamples;i++) {
 					operator_advance(&cptr[0],vibval3[i]);
-					opfuncs[cptr[0].op_state](&cptr[0]);		//TomTom
+					opfuncs[cptr[0].op_state](&cptr[0]); //TomTom
 					operator_output(&cptr[0],0,tremval3[i]);
 					Bit32s chanval = cptr[0].cval*2;
 					CHANVAL_OUT
@@ -1085,9 +1079,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 				} else vibval2 = vibval_const;
 
-				if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+				if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 				else tremval1 = tremval_const;
-				if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+				if (cptr[9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 				else tremval2 = tremval_const;
 
 				cptr = &op[8];
@@ -1097,20 +1091,20 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						vibval4[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 				} else vibval4 = vibval_const;
 
-				if (cptr[9].tremolo) tremval4 = trem_lut;	// tremolo enabled, use table
+				if (cptr[9].tremolo) tremval4 = trem_lut; // tremolo enabled, use table
 				else tremval4 = tremval_const;
 
 				// calculate channel output
 				for (i=0;i<endsamples;i++) {
 					operator_advance_drums(&op[7],vibval1[i],&op[7+9],vibval2[i],&op[8+9],vibval4[i]);
 
-					opfuncs[op[7].op_state](&op[7]);			//Hihat
+					opfuncs[op[7].op_state](&op[7]);         //Hihat
 					operator_output(&op[7],0,tremval1[i]);
 
-					opfuncs[op[7+9].op_state](&op[7+9]);		//Snare
+					opfuncs[op[7+9].op_state](&op[7+9]);     //Snare
 					operator_output(&op[7+9],0,tremval2[i]);
 
-					opfuncs[op[8+9].op_state](&op[8+9]);		//Cymbal
+					opfuncs[op[8+9].op_state](&op[8+9]);     //Cymbal
 					operator_output(&op[8+9],0,tremval4[i]);
 
 					Bit32s chanval = (op[7].cval + op[7+9].cval + op[8+9].cval)*2;
@@ -1132,8 +1126,8 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 			if (cur_ch < 9) {
 				cptr = &op[cur_ch];
 			} else {
-				cptr = &op[cur_ch+9];	// second set is operator18-operator35
-				k += (-9+256);		// second set uses registers 0x100 onwards
+				cptr = &op[cur_ch+9]; // second set is operator18-operator35
+				k += (-9+256);        // second set uses registers 0x100 onwards
 			}
 			// check if this operator is part of a 4-op
 			if ((adlibreg[0x105]&1) && cptr->is_4op_attached) continue;
@@ -1153,7 +1147,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval1[i] = (Bit32s)((vib_lut[i]*cptr[0].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval1 = vibval_const;
-							if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 							else tremval1 = tremval_const;
 
 							// calculate channel output
@@ -1173,9 +1167,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval1[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval1 = vibval_const;
-							if (cptr[9].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[9].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 							else tremval1 = tremval_const;
-							if (cptr[3].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 							else tremval2 = tremval_const;
 
 							// calculate channel output
@@ -1194,7 +1188,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						}
 
 						if (cptr[3+9].op_state != OF_TYPE_OFF) {
-							if (cptr[3+9].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3+9].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 							else tremval1 = tremval_const;
 
 							// calculate channel output
@@ -1215,7 +1209,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval1[i] = (Bit32s)((vib_lut[i]*cptr[0].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval1 = vibval_const;
-							if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 							else tremval1 = tremval_const;
 
 							// calculate channel output
@@ -1235,11 +1229,11 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval1[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval1 = vibval_const;
-							if (cptr[9].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[9].tremolo) tremval1 = trem_lut;   // tremolo enabled, use table
 							else tremval1 = tremval_const;
-							if (cptr[3].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3].tremolo) tremval2 = trem_lut;   // tremolo enabled, use table
 							else tremval2 = tremval_const;
-							if (cptr[3+9].tremolo) tremval3 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3+9].tremolo) tremval3 = trem_lut; // tremolo enabled, use table
 							else tremval3 = tremval_const;
 
 							// calculate channel output
@@ -1276,9 +1270,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 					for (i=0;i<endsamples;i++)
 						vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 				} else vibval2 = vibval_const;
-				if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+				if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 				else tremval1 = tremval_const;
-				if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+				if (cptr[9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 				else tremval2 = tremval_const;
 
 				// calculate channel output
@@ -1312,9 +1306,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval2 = vibval_const;
-							if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 							else tremval1 = tremval_const;
-							if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+							if (cptr[9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 							else tremval2 = tremval_const;
 
 							// calculate channel output
@@ -1333,9 +1327,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						}
 
 						if ((cptr[3].op_state != OF_TYPE_OFF) || (cptr[3+9].op_state != OF_TYPE_OFF)) {
-							if (cptr[3].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3].tremolo) tremval1 = trem_lut;   // tremolo enabled, use table
 							else tremval1 = tremval_const;
-							if (cptr[3+9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3+9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 							else tremval2 = tremval_const;
 
 							// calculate channel output
@@ -1367,13 +1361,13 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 								for (i=0;i<endsamples;i++)
 									vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 							} else vibval2 = vibval_const;
-							if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+							if (cptr[0].tremolo) tremval1 = trem_lut;   // tremolo enabled, use table
 							else tremval1 = tremval_const;
-							if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+							if (cptr[9].tremolo) tremval2 = trem_lut;   // tremolo enabled, use table
 							else tremval2 = tremval_const;
-							if (cptr[3].tremolo) tremval3 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3].tremolo) tremval3 = trem_lut;   // tremolo enabled, use table
 							else tremval3 = tremval_const;
-							if (cptr[3+9].tremolo) tremval4 = trem_lut;	// tremolo enabled, use table
+							if (cptr[3+9].tremolo) tremval4 = trem_lut; // tremolo enabled, use table
 							else tremval4 = tremval_const;
 
 							// calculate channel output
@@ -1414,9 +1408,9 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 					for (i=0;i<endsamples;i++)
 						vibval2[i] = (Bit32s)((vib_lut[i]*cptr[9].freq_high/8)*FIXEDPT*VIBFAC);
 				} else vibval2 = vibval_const;
-				if (cptr[0].tremolo) tremval1 = trem_lut;	// tremolo enabled, use table
+				if (cptr[0].tremolo) tremval1 = trem_lut; // tremolo enabled, use table
 				else tremval1 = tremval_const;
-				if (cptr[9].tremolo) tremval2 = trem_lut;	// tremolo enabled, use table
+				if (cptr[9].tremolo) tremval2 = trem_lut; // tremolo enabled, use table
 				else tremval2 = tremval_const;
 
 				// calculate channel output
