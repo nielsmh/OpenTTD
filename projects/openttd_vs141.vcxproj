@@ -1331,6 +1331,8 @@
     <ClCompile Include="..\src\music\null_m.cpp" />
     <ClCompile Include="..\src\music\midifile.cpp" />
     <ClCompile Include="..\src\music\win32_m.cpp" />
+    <ClCompile Include="..\src\music\emu\opl.cpp" />
+    <ClInclude Include="..\src\music\emu\opl.h" />
     <ClCompile Include="..\src\sound\null_s.cpp" />
     <ClCompile Include="..\src\sound\sdl_s.cpp" />
     <ClCompile Include="..\src\sound\win32_s.cpp" />
