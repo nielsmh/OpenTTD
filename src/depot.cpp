@@ -44,6 +44,7 @@ Depot::~Depot()
  * placed again later without messing vehicle orders.
  *
  * @see Depot::IsInUse
+ * @see Depot::Reuse
  */
 void Depot::Disuse()
 {
