@@ -1,0 +1,76 @@
+; $Id$
+;
+; This represents the original music as on the Transport
+; Tycoon Deluxe for DOS CD.
+;
+[metadata]
+name              = original_adlib
+shortname         = TTDA
+version           = 1
+description       = Original Transport Tycoon Deluxe DOS edition music for AdLib FM synthesis.
+
+[files]
+theme = adlib.cat
+old_0 = adlib.cat
+old_1 = adlib.cat
+old_2 = adlib.cat
+old_3 = adlib.cat
+old_4 = adlib.cat
+old_5 = adlib.cat
+old_6 = adlib.cat
+old_7 = adlib.cat
+old_8 =
+old_9 =
+new_0 = adlib.cat
+new_1 = adlib.cat
+new_2 = adlib.cat
+new_3 = adlib.cat
+new_4 = adlib.cat
+new_5 = adlib.cat
+new_6 = adlib.cat
+new_7 =
+new_8 =
+new_9 =
+ezy_0 = adlib.cat
+ezy_1 = adlib.cat
+ezy_2 = adlib.cat
+ezy_3 = adlib.cat
+ezy_4 = adlib.cat
+ezy_5 = adlib.cat
+ezy_6 =
+ezy_7 =
+ezy_8 =
+ezy_9 =
+
+[md5s]
+adlib.cat = 0ab0f0a43c7e91a8d286a532be925ee0
+
+[catindex]
+theme = 0a
+old_0 = 1a
+old_1 = 8a
+old_2 = 2a
+old_3 = 9a
+old_4 = 14a
+old_5 = 15a
+old_6 = 19a
+old_7 = 13a
+new_0 = 6a
+new_1 = 11a
+new_2 = 10a
+new_3 = 17a
+new_4 = 21a
+new_5 = 18a
+new_6 = 5a
+ezy_0 = 12a
+ezy_1 = 7a
+ezy_2 = 16a
+ezy_3 = 3a
+ezy_4 = 20a
+ezy_5 = 4a
+
+[names]
+; Names get read from the CAT file
+
+[origin]
+default      = You can find it on your Transport Tycoon Deluxe CD-ROM.
