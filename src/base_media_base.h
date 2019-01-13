@@ -294,6 +294,7 @@ byte *GetMusicCatEntryData(const char *filename, size_t entrynum, size_t &entryl
 enum MusicTrackType {
 	MTT_STANDARDMIDI, ///< Standard MIDI file
 	MTT_MPSMIDI,      ///< MPS GM driver MIDI format (contained in a CAT file)
+	MTT_MPSADLIB,     ///< MPS AdLib/OPL driver format (contained in a CAT file)
 };
 
 /** Metadata about a music track. */

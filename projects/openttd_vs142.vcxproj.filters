@@ -3081,6 +3081,15 @@
     <ClCompile Include="..\src\music\win32_m.cpp">
       <Filter>Music</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\music\adlib.cpp">
+      <Filter>Music</Filter>
+    </ClCompile>
+    <ClInclude Include="..\src\music\adlib.h">
+      <Filter>Music</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\music\emu\opl.h">
+      <Filter>Music</Filter>
+    </ClInclude>
     <ClCompile Include="..\src\sound\null_s.cpp">
       <Filter>Sound</Filter>
     </ClCompile>

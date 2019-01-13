@@ -76,6 +76,7 @@ struct MusicSystem {
 	void Next();
 	void Prev();
 	void CheckStatus();
+	void SetVolume(byte volume);
 
 	bool IsPlaying() const;
 	bool IsShuffle() const;
@@ -93,6 +94,8 @@ private:
 	void SaveCustomPlaylist(PlaylistChoices pl);
 
 	Playlist standard_playlists[PLCH_MAX];
+
+	MusicDriver *active_driver = nullptr;
 };
 
 MusicSystem _music;
@@ -214,7 +217,8 @@ void MusicSystem::Play()
 {
 	/* Always set the playing flag, even if there is no music */
 	_settings_client.music.playing = true;
-	MusicDriver::GetInstance()->StopSong();
+	if (this->active_driver) this->active_driver->StopSong();
+	this->active_driver = nullptr;
 	/* Make sure playlist_position is a valid index, if playlist has changed etc. */
 	this->ChangePlaylistPosition(0);
 
@@ -223,7 +227,11 @@ void MusicSystem::Play()
 
 	MusicSongInfo song = this->active_playlist[this->playlist_position];
 	if (_game_mode == GM_MENU && this->selected_playlist == PLCH_THEMEONLY) song.loop = true;
-	MusicDriver::GetInstance()->PlaySong(song);
+
+	if (song.filetype == MTT_MPSADLIB) this->active_driver = GetAdLibMusicDriver();
+	else this->active_driver = MusicDriver::GetInstance();
+	this->active_driver->SetVolume(_settings_client.music.music_vol);
+	this->active_driver->PlaySong(song);
 
 	InvalidateWindowData(WC_MUSIC_WINDOW, 0);
 }
@@ -231,7 +239,8 @@ void MusicSystem::Play()
 /** Stop playback and set flag that we don't intend to play music */
 void MusicSystem::Stop()
 {
-	MusicDriver::GetInstance()->StopSong();
+	if (this->active_driver) this->active_driver->StopSong();
+	this->active_driver = nullptr;
 	_settings_client.music.playing = false;
 
 	InvalidateWindowData(WC_MUSIC_WINDOW, 0);
@@ -264,13 +273,18 @@ void MusicSystem::CheckStatus()
 	}
 	if (this->active_playlist.empty()) return;
 	/* If we were supposed to be playing, but music has stopped, move to next song */
-	if (this->IsPlaying() && !MusicDriver::GetInstance()->IsSongPlaying()) this->Next();
+	if (this->IsPlaying() && !this->active_driver->IsSongPlaying()) this->Next();
+}
+
+void MusicSystem::SetVolume(byte volume)
+{
+	if (this->active_driver) this->active_driver->SetVolume(volume);
 }
 
 /** Is the player getting music right now? */
 bool MusicSystem::IsPlaying() const
 {
-	return _settings_client.music.playing && !this->active_playlist.empty();
+	return _settings_client.music.playing && !this->active_playlist.empty() && this->active_driver;
 }
 
 /** Is shuffle mode enabled? */
@@ -805,7 +819,7 @@ struct MusicWindow : public Window {
 				if (new_vol < 3) new_vol = 0;
 				if (new_vol != *vol) {
 					*vol = new_vol;
-					if (widget == WID_M_MUSIC_VOL) MusicDriver::GetInstance()->SetVolume(new_vol);
+					if (widget == WID_M_MUSIC_VOL) _music.SetVolume(new_vol);
 					this->SetDirty();
 				}
 

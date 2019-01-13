@@ -51,7 +51,7 @@ char *GetMusicCatEntryName(const char *filename, size_t entrynum)
  * @param filename Name of CAT file to read from.
  * @param entrynum Index of entry to read
  * @param[out] entrylen Receives length of data read
- * @return Pointer to buffer with data read, caller is responsible for freeind memory,
+ * @return Pointer to buffer with data read, caller is responsible for freeing memory,
  *         nullptr if entrynum does not exist.
  */
 byte *GetMusicCatEntryData(const char *filename, size_t entrynum, size_t &entrylen)
@@ -139,7 +139,7 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 			IniItem *item = catindex->GetItem(_music_file_names[i], false);
 			if (item != nullptr && !StrEmpty(item->value)) {
 				/* Song has a CAT file index, assume it's MPS MIDI format */
-				this->songinfo[i].filetype = MTT_MPSMIDI;
+				this->songinfo[i].filetype = (item->value[strlen(item->value) - 1] == 'a') ? MTT_MPSADLIB : MTT_MPSMIDI;
 				this->songinfo[i].cat_index = atoi(item->value);
 				char *songname = GetMusicCatEntryName(filename, this->songinfo[i].cat_index);
 				if (songname == nullptr) {

@@ -37,8 +37,8 @@ public:
 	virtual bool IsSongPlaying() = 0;
 
 	/**
-	 * Set the volume, if possible.
-	 * @param vol The new volume.
+	 * Set the music volume, if possible.
+	 * @param vol The new volume level, range 0 (silent) to 127 (max).
 	 */
 	virtual void SetVolume(byte vol) = 0;
 
@@ -51,5 +51,7 @@ public:
 };
 
 extern char *_ini_musicdriver;
+
+extern MusicDriver *GetAdLibMusicDriver();
 
 #endif /* MUSIC_MUSIC_DRIVER_HPP */

@@ -1128,7 +1128,8 @@ music/midifile.cpp
 		music/fluidsynth.cpp
 	#end
 #end
-music/emu/opl.cpp
+music/adlib.cpp
+music/adlib.h
 music/emu/opl.h
 
 # Sound
