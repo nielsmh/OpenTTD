@@ -15,6 +15,7 @@
 #include <vector>
 
 namespace OPL2 {
+#define OPLTYPE_IS_OPL3
 #include "emu/opl.cpp"
 }
 
@@ -437,11 +438,12 @@ struct AdlibPlayer {
 		uint32 targetsamplewritten = this->lastsamplewritten + (uint32)samples;
 		uint32 bufpos = 0;
 		while (this->lastsamplewritten < targetsamplewritten) {
-			if (!PlayStep()) break;
 			uint32 towrite = min<uint32>((uint32)this->sampletime - this->lastsamplewritten, (uint32)samples - bufpos);
-			OPL2::adlib_getsample(buffer + bufpos, towrite);
+			if (towrite > 0) OPL2::adlib_getsample(buffer + bufpos, towrite);
 			this->lastsamplewritten += towrite;
 			bufpos += towrite;
+			if (bufpos == samples) break; // exhausted pcm buffer, do not play more steps
+			if (!PlayStep()) break; // play step, break if end of song
 		}
 
 		for (size_t i = 0; i < samples; i++) {
