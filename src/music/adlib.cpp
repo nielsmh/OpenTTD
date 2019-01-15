@@ -12,6 +12,9 @@
 #include "../mixer.h"
 #include "../base_media_base.h"
 #include "../core/endian_func.hpp"
+#include "../thread/thread.h"
+#include "../debug.h"
+#include <stdio.h>
 #include <vector>
 
 namespace OPL2 {
@@ -68,6 +71,10 @@ struct AdlibPlayer {
 		byte op2;
 	};
 
+	int16 song_tempo;
+	int16 tempo_ticks;
+	uint16 active_notes;
+
 	TrackStatus tracks[16];
 	ChannelStatus channels[9];
 	std::vector<InstrumentDef> extra_instruments;
@@ -90,6 +97,8 @@ struct AdlibPlayer {
 	byte volume;                ///< current volume level (0-127)
 	byte *songdata;             ///< owned copy of raw song data
 	size_t songdatalen;         ///< length of songdata buffer
+	ThreadMutex *mutex;         ///< mutex for access to songdata
+	FILE *dump;
 
 	/* Keeping track of pcm output */
 	uint32 lastsamplewritten;   ///< last sample number written
@@ -97,16 +106,20 @@ struct AdlibPlayer {
 	double samples_step;        ///< samples per emulation tick
 	double steps_sec;           ///< emulation ticks per second
 
-	int16 song_tempo;
-	int16 tempo_ticks;
-	uint16 active_notes;
-
 	AdlibPlayer()
 	{
 		this->steps_sec = 60;
 		this->status = Status::STOPPED;
 		this->songdata = nullptr;
 		this->songdatalen = 0;
+		this->mutex = ThreadMutex::New();
+		this->dump = fopen("adlib_dump.pcm", "wb");
+	}
+
+	virtual ~AdlibPlayer()
+	{
+		delete this->mutex;
+		fclose(this->dump);
 	}
 
 	bool IsPlaying()
@@ -276,28 +289,31 @@ struct AdlibPlayer {
 				needprogram = program != chst.cur_program;
 				chst.cur_program = program;
 				chst.contest = 0;
+				//DEBUG(driver, 0, "AdLib: Select channel for program: ch=%d pg=%2X rf=%d st=%d", ch, program, needprogram, 0);
 				return ch;
 			}
 		}
 		bestch = min<byte>(bestch, 8); // should not be necessary
 
 		ChannelStatus &chst = this->channels[bestch];
-		//needprogram = program != chst.cur_program; // not present in original
+		needprogram = program != chst.cur_program; // not present in original
 		chst.cur_program = program;
 		chst.contest = 0;
+		//DEBUG(driver, 0, "AdLib: Select channel for program: ch=%d pg=%2X rf=%d st=%d", bestch, program, needprogram, 1);
 		return bestch;
 	}
 
-	void DoNoteOn(byte ch, byte b, uint16 freqnum)
+	void DoNoteOn(byte ch, byte blocknum, uint16 freqnum)
 	{
 		OPL2::adlib_write(0xA0 + ch, freqnum & 0xFF);
-		this->channels[ch].cur_bn_fh = (b << 2) | (freqnum >> 8);
+		this->channels[ch].cur_bn_fh = (blocknum << 2) | (freqnum >> 8);
 		OPL2::adlib_write(0xb0 + ch, this->channels[ch].cur_bn_fh | 0x20);
 	}
 
 	void PlayTrackStep(byte tracknum)
 	{
 		TrackStatus &track = this->tracks[tracknum];
+		double time = this->sampletime / this->samples_step / this->steps_sec;
 
 		/* amusic.com @ 0x0DD7 = track_playstep */
 		while (track.delay == 0) {
@@ -306,12 +322,14 @@ struct AdlibPlayer {
 			if (b1 == 0xFE) {
 				/* segment call */
 				b1 = this->songdata[track.playpos++];
+				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X call segment %02X", time, tracknum, b1);
 				track.callreturn = track.playpos;
 				track.playpos = this->segments[b1];
 				track.delay = this->ReadVariableLength(track.playpos);
 				continue;
 			} else if (b1 == 0xFD) {
 				/* segment return */
+				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X retn segment", time, tracknum, b1);
 				track.playpos = track.callreturn;
 				track.callreturn = 0;
 				track.delay = this->ReadVariableLength(track.playpos);
@@ -330,6 +348,8 @@ struct AdlibPlayer {
 				case 0x80:
 					// note off
 					b2 = this->songdata[track.playpos++];
+					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
+					if (this->active_notes != 0) this->active_notes--;
 					this->DoPlayNote(tracknum, 0, b1);
 					if (track.byte1547 != 0) {
 						// dual channel play?
@@ -340,6 +360,7 @@ struct AdlibPlayer {
 					// note on-off
 					b2 = this->songdata[track.playpos++];
 					if (b2 != 0) {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
 						if (track.byte1547 != 0 || !this->IsAnyChannelFree()) {
 							// dual channel play?
 							TrackStatus &othertrack = this->tracks[track.byte1547];
@@ -350,6 +371,7 @@ struct AdlibPlayer {
 						this->DoPlayNote(tracknum, b2 * track.volume / 128, b1);
 						this->active_notes++;
 					} else {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 						if (this->active_notes != 0) this->active_notes--;
 						this->DoPlayNote(track.byte1547, 0, b1);
 						this->DoPlayNote(tracknum, 0, b1);
@@ -359,15 +381,19 @@ struct AdlibPlayer {
 					// controller?
 					b2 = this->songdata[track.playpos++];
 					if (b1 == 7) {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X set volume %d", time, tracknum, b2);
 						if (b2 != 0) b2++;
 						track.volume = b2;
 					} else if (b1 == 0) {
 						if (b2 != 0) {
+							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X set tempo %d", time, tracknum, b2);
 							this->song_tempo = (uint32)b2 * 48 / 60;
 						}
 					} else if (b1 == 0x7E) {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual on tr=%X", time, tracknum, b2-1);
 						track.byte1547 = b2 - 1;
 					} else if (b1 == 0x7F) {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual off", time, tracknum);
 						track.byte1547 = 0;
 					}
 					break;
@@ -378,6 +404,7 @@ struct AdlibPlayer {
 						this->status = Status::FINISHED;
 						return;
 					} else {
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X program %d", time, tracknum, b1);
 						track.program = b1;
 					}
 					break;
@@ -433,6 +460,8 @@ struct AdlibPlayer {
 	{
 		if (!this->IsPlaying()) return;
 
+		ThreadMutexLocker mlock(this->mutex);
+
 		if (this->status == Status::BEGIN_PLAY) this->RestartSong();
 
 		uint32 targetsamplewritten = this->lastsamplewritten + (uint32)samples;
@@ -441,10 +470,11 @@ struct AdlibPlayer {
 			uint32 towrite = min<uint32>((uint32)this->sampletime - this->lastsamplewritten, (uint32)samples - bufpos);
 			if (towrite > 0) OPL2::adlib_getsample(buffer + bufpos, towrite);
 			this->lastsamplewritten += towrite;
-			bufpos += towrite;
+			bufpos += towrite * 2;
 			if (bufpos == samples) break; // exhausted pcm buffer, do not play more steps
 			if (!PlayStep()) break; // play step, break if end of song
 		}
+		fwrite(buffer, 4, samples, this->dump);
 
 		for (size_t i = 0; i < samples; i++) {
 			buffer[0] = buffer[0] * this->volume / 127;
@@ -480,6 +510,8 @@ struct AdlibPlayer {
 		assert(length > 0);
 
 		this->UnloadSong();
+
+		ThreadMutexLocker mlock(this->mutex); // must be after UnloadSong, as that also takes the mutex
 
 		this->sampletime = 0;
 		this->songdata = data;
@@ -525,6 +557,8 @@ struct AdlibPlayer {
 
 	void UnloadSong()
 	{
+		ThreadMutexLocker mlock(this->mutex);
+
 		free(this->songdata);
 		this->songdata = nullptr;
 		this->segments.clear();
@@ -670,8 +704,6 @@ void MusicDriver_AdLib::Stop()
 void MusicDriver_AdLib::PlaySong(const MusicSongInfo & song)
 {
 	assert(song.filetype == MTT_MPSADLIB);
-
-	_adlib.UnloadSong();
 
 	size_t songlen = 0;
 	byte *songdata = GetMusicCatEntryData(song.filename, song.cat_index, songlen);
