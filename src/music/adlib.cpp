@@ -36,7 +36,7 @@ struct AdlibPlayer {
 		uint32 playpos;
 		uint32 trackstart;
 		uint32 callreturn;
-		byte byte1547; // not originally in the trackstatus struct, but appears to relate to it
+		byte dualtrack; // not originally in the trackstatus struct; indicates other track that plays dual with this
 	};
 	/** Internal channel status for an OPL2 channel */
 	struct ChannelStatus {
@@ -155,6 +155,8 @@ struct AdlibPlayer {
 	void DoPlayNote(byte tracknum, byte velocity, byte notenum)
 	{
 		/* amusic.com @ 0x094C = opl_playnote */
+		assert(tracknum < 16);
+		assert(notenum < 128);
 		TrackStatus &track = this->tracks[tracknum];
 
 		InstrumentDef *instrument;
@@ -166,8 +168,10 @@ struct AdlibPlayer {
 			byte percnote = notenum - 35;
 			if (percnote > 30) return; // out of range
 			perc_sound = &perc_notes[percnote];
+			assert(percnote != 23); // the one with 0xFF 0xFF 0xFF
 			instrument = &perc_instruments[perc_sound->b1];
 			notenum = perc_sound->b2 - 1;
+			assert(notenum < 128);
 		} else {
 			instrument = &this->extra_instruments.at(track.program);
 		}
@@ -185,6 +189,7 @@ struct AdlibPlayer {
 
 		bool needprogram = false; // word155F, originally a global used to return extra data from SelectChannel
 		byte ch = this->SelectChannel((tracknum == 9) ? (perc_sound->b1 + 128) : track.program, needprogram);
+		assert(ch < 9);
 		ChannelStatus &chst = this->channels[ch];
 
 		chst.velocity = velocity;
@@ -222,6 +227,7 @@ struct AdlibPlayer {
 	void DoPitchbend(byte tracknum, byte amount)
 	{
 		/* amusic.com @ 0x08B5 = opl_pitchbend */
+		assert(tracknum < 16);
 		TrackStatus &track = this->tracks[tracknum];
 		track.pitchbend = amount;
 
@@ -247,6 +253,8 @@ struct AdlibPlayer {
 	uint16 CalcFrequency(byte tracknum, uint16 notenum)
 	{
 		/* amusic.com @ 0x0850 = ? */
+		assert(tracknum < 16);
+		assert(notenum < 128);
 		TrackStatus &track = this->tracks[tracknum];
 
 		if (track.pitchbend == 0) {
@@ -289,7 +297,6 @@ struct AdlibPlayer {
 				needprogram = program != chst.cur_program;
 				chst.cur_program = program;
 				chst.contest = 0;
-				//DEBUG(driver, 0, "AdLib: Select channel for program: ch=%d pg=%2X rf=%d st=%d", ch, program, needprogram, 0);
 				return ch;
 			}
 		}
@@ -299,12 +306,12 @@ struct AdlibPlayer {
 		needprogram = program != chst.cur_program; // not present in original
 		chst.cur_program = program;
 		chst.contest = 0;
-		//DEBUG(driver, 0, "AdLib: Select channel for program: ch=%d pg=%2X rf=%d st=%d", bestch, program, needprogram, 1);
 		return bestch;
 	}
 
 	void DoNoteOn(byte ch, byte blocknum, uint16 freqnum)
 	{
+		assert(ch < 9);
 		OPL2::adlib_write(0xA0 + ch, freqnum & 0xFF);
 		this->channels[ch].cur_bn_fh = (blocknum << 2) | (freqnum >> 8);
 		OPL2::adlib_write(0xb0 + ch, this->channels[ch].cur_bn_fh | 0x20);
@@ -312,16 +319,19 @@ struct AdlibPlayer {
 
 	void PlayTrackStep(byte tracknum)
 	{
+		assert(tracknum < 16);
 		TrackStatus &track = this->tracks[tracknum];
 		double time = this->sampletime / this->samples_step / this->steps_sec;
 
 		/* amusic.com @ 0x0DD7 = track_playstep */
 		while (track.delay == 0) {
+			assert(track.playpos < this->songdatalen);
 			byte b1 = this->songdata[track.playpos++];
 			byte b2;
 			if (b1 == 0xFE) {
 				/* segment call */
 				b1 = this->songdata[track.playpos++];
+				assert(b1 < this->segments.size());
 				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X call segment %02X", time, tracknum, b1);
 				track.callreturn = track.playpos;
 				track.playpos = this->segments[b1];
@@ -329,6 +339,7 @@ struct AdlibPlayer {
 				continue;
 			} else if (b1 == 0xFD) {
 				/* segment return */
+				assert(track.callreturn != 0);
 				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X retn segment", time, tracknum, b1);
 				track.playpos = track.callreturn;
 				track.callreturn = 0;
@@ -351,9 +362,9 @@ struct AdlibPlayer {
 					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 					if (this->active_notes != 0) this->active_notes--;
 					this->DoPlayNote(tracknum, 0, b1);
-					if (track.byte1547 != 0) {
+					if (track.dualtrack != 0) {
 						// dual channel play?
-						this->DoPlayNote(track.byte1547, 0, b1);
+						this->DoPlayNote(track.dualtrack, 0, b1);
 					}
 					break;
 				case 0x90:
@@ -361,19 +372,19 @@ struct AdlibPlayer {
 					b2 = this->songdata[track.playpos++];
 					if (b2 != 0) {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
-						if (track.byte1547 != 0 || !this->IsAnyChannelFree()) {
+						if (track.dualtrack != 0 || !this->IsAnyChannelFree()) {
 							// dual channel play?
-							TrackStatus &othertrack = this->tracks[track.byte1547];
+							TrackStatus &othertrack = this->tracks[track.dualtrack];
 							othertrack.program = track.program;
 							othertrack.pitchbend = track.pitchbend;
-							this->DoPlayNote(track.byte1547, b2 * track.volume / 128, b1);
+							this->DoPlayNote(track.dualtrack, b2 * track.volume / 128, b1);
 						}
 						this->DoPlayNote(tracknum, b2 * track.volume / 128, b1);
 						this->active_notes++;
 					} else {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 						if (this->active_notes != 0) this->active_notes--;
-						this->DoPlayNote(track.byte1547, 0, b1);
+						this->DoPlayNote(track.dualtrack, 0, b1);
 						this->DoPlayNote(tracknum, 0, b1);
 					}
 					break;
@@ -391,10 +402,11 @@ struct AdlibPlayer {
 						}
 					} else if (b1 == 0x7E) {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual on tr=%X", time, tracknum, b2-1);
-						track.byte1547 = b2 - 1;
+						track.dualtrack = b2 - 1;
+						assert(track.dualtrack < 16);
 					} else if (b1 == 0x7F) {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual off", time, tracknum);
-						track.byte1547 = 0;
+						track.dualtrack = 0;
 					}
 					break;
 				case 0xC0:
@@ -411,11 +423,12 @@ struct AdlibPlayer {
 				case 0xE0:
 					// pitch bend
 					track.pitchbend = b1 - 16;
+					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X pitchbend %d", time, tracknum, track.pitchbend);
 					this->DoPitchbend(tracknum, track.pitchbend);
-					if (track.byte1547 != 0) {
-						TrackStatus &othertrack = this->tracks[track.byte1547];
+					if (track.dualtrack != 0) {
+						TrackStatus &othertrack = this->tracks[track.dualtrack];
 						othertrack.pitchbend = track.pitchbend;
-						this->DoPitchbend(track.byte1547, track.pitchbend);
+						this->DoPitchbend(track.dualtrack, track.pitchbend);
 					}
 					break;
 				default:
@@ -437,20 +450,22 @@ struct AdlibPlayer {
 		if (this->tempo_ticks > 0) return true;
 		this->tempo_ticks += 0x94;
 
+		// track 9 is percussion, play it last presumably so it overrides anything else
 		const byte trackorder[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 9 };
 		for (byte tr : trackorder) {
 			TrackStatus &trst = this->tracks[tr];
 			if (trst.playpos == 0) continue;
 			if (trst.delay == 0) {
 				this->PlayTrackStep(tr);
-			} else {
-				trst.delay--;
 			}
+			trst.delay--;
 		}
 
-		for (auto &ch : this->channels) {
-			ch.cur_program = 0xFF;
-			ch.cur_note = 0;
+		if (/*repeatflag*/ false) {
+			for (auto &ch : this->channels) {
+				ch.cur_program = 0xFF;
+				ch.cur_note = 0;
+			}
 		}
 
 		return true;
@@ -492,7 +507,7 @@ struct AdlibPlayer {
 		for (auto &tr : this->tracks) {
 			tr.pitchbend = 0;
 			tr.field12 = 0;
-			tr.byte1547 = 0;
+			tr.dualtrack = 0;
 			if (tr.trackstart != 0) {
 				tr.playpos = tr.trackstart;
 				tr.delay = this->ReadVariableLength(tr.playpos);
