@@ -18,13 +18,14 @@
 #include <vector>
 
 namespace OPL2 {
-#define OPLTYPE_IS_OPL3
+//#define OPLTYPE_IS_OPL3
 #include "emu/opl.cpp"
 }
 
 
 /** Decoder for AdLib music data */
 struct AdlibPlayer {
+#pragma pack(push, 1)
 	/** Playback status for a pseudo-MIDI track */
 	struct TrackStatus {
 		byte program;
@@ -53,8 +54,8 @@ struct AdlibPlayer {
 	struct PercussionNote {
 		byte b1, b2, b3;
 	};
-	/** Definition of an instrument program */
-	struct InstrumentDef {
+	/** Definition of a patch program */
+	struct PatchDef {
 		byte op1_tvsk_fmf; // Tremolo, Vibrato, Sustain, KSR, Frequency Multiplication Factor
 		byte op2_tvsk_fmf;
 		byte op1_ks_vol; // Key Scale, Volume (inverse attenuation)
@@ -70,6 +71,7 @@ struct AdlibPlayer {
 		byte op1;
 		byte op2;
 	};
+#pragma pack(pop)
 
 	int16 song_tempo;
 	int16 tempo_ticks;
@@ -77,14 +79,14 @@ struct AdlibPlayer {
 
 	TrackStatus tracks[16];
 	ChannelStatus channels[9];
-	std::vector<InstrumentDef> extra_instruments;
+	std::vector<PatchDef> melpatches;
 	std::vector<uint32> segments;
-	static uint16 note_freqency[128];
-	static byte note_blocknum[128];
-	static byte pitchbend_scale[128];
-	static PercussionNote perc_notes[32];
-	static InstrumentDef perc_instruments[17];
-	static ChannelOperators channel_operators[9];
+	const static uint16 note_freqency[128];
+	const static byte note_blocknum[128];
+	const static byte pitchbend_scale[128];
+	const static PercussionNote perc_notes[32];
+	const static PatchDef prcpatches[17];
+	const static ChannelOperators channel_operators[9];
 
 	enum class Status {
 		STOPPED,
@@ -108,7 +110,7 @@ struct AdlibPlayer {
 
 	AdlibPlayer()
 	{
-		this->steps_sec = 60;
+		this->steps_sec = 60 * 60 / 24;
 		this->status = Status::STOPPED;
 		this->songdata = nullptr;
 		this->songdatalen = 0;
@@ -158,22 +160,22 @@ struct AdlibPlayer {
 		assert(tracknum < 16);
 		assert(notenum < 128);
 		TrackStatus &track = this->tracks[tracknum];
+		if (track.program == 0xFF) return; // hack to prevent uninitialized tracks (typically dualtracks) from crashing
 
-		InstrumentDef *instrument;
-		PercussionNote *perc_sound = nullptr;
+		const PatchDef *instrument;
+		const PercussionNote *perc_sound = nullptr;
 
 		if (tracknum == 9) {
 			// percussion?
-			notenum++;
-			byte percnote = notenum - 35;
+			byte percnote = notenum - 34;
 			if (percnote > 30) return; // out of range
 			perc_sound = &perc_notes[percnote];
 			assert(percnote != 23); // the one with 0xFF 0xFF 0xFF
-			instrument = &perc_instruments[perc_sound->b1];
+			instrument = &prcpatches[perc_sound->b1];
 			notenum = perc_sound->b2 - 1;
 			assert(notenum < 128);
 		} else {
-			instrument = &this->extra_instruments.at(track.program);
+			instrument = &this->melpatches.at(track.program);
 		}
 
 		if (velocity == 0) {
@@ -188,7 +190,7 @@ struct AdlibPlayer {
 		}
 
 		bool needprogram = false; // word155F, originally a global used to return extra data from SelectChannel
-		byte ch = this->SelectChannel((tracknum == 9) ? (perc_sound->b1 + 128) : track.program, needprogram);
+		byte ch = this->SelectChannel((tracknum == 9) ? (perc_sound->b1 + 0x80) : track.program, needprogram);
 		assert(ch < 9);
 		ChannelStatus &chst = this->channels[ch];
 
@@ -282,8 +284,6 @@ struct AdlibPlayer {
 		}
 
 		/* amusic.com @ 0x0BD8 = opl_makechannel */
-		needprogram = false;
-
 		uint16 maxcontest = 0;
 		byte bestch = 0;
 
@@ -294,16 +294,14 @@ struct AdlibPlayer {
 				bestch = ch;
 			}
 			if (chst.cur_note == 0) {
-				needprogram = program != chst.cur_program;
-				chst.cur_program = program;
-				chst.contest = 0;
-				return ch;
+				bestch = ch;
+				break;
 			}
 		}
 		bestch = min<byte>(bestch, 8); // should not be necessary
 
 		ChannelStatus &chst = this->channels[bestch];
-		needprogram = program != chst.cur_program; // not present in original
+		needprogram = program != chst.cur_program;
 		chst.cur_program = program;
 		chst.contest = 0;
 		return bestch;
@@ -314,7 +312,7 @@ struct AdlibPlayer {
 		assert(ch < 9);
 		OPL2::adlib_write(0xA0 + ch, freqnum & 0xFF);
 		this->channels[ch].cur_bn_fh = (blocknum << 2) | (freqnum >> 8);
-		OPL2::adlib_write(0xb0 + ch, this->channels[ch].cur_bn_fh | 0x20);
+		OPL2::adlib_write(0xB0 + ch, this->channels[ch].cur_bn_fh | 0x20);
 	}
 
 	void PlayTrackStep(byte tracknum)
@@ -332,7 +330,7 @@ struct AdlibPlayer {
 				/* segment call */
 				b1 = this->songdata[track.playpos++];
 				assert(b1 < this->segments.size());
-				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X call segment %02X", time, tracknum, b1);
+				//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X call segment %02X", time, tracknum, b1);
 				track.callreturn = track.playpos;
 				track.playpos = this->segments[b1];
 				track.delay = this->ReadVariableLength(track.playpos);
@@ -340,7 +338,7 @@ struct AdlibPlayer {
 			} else if (b1 == 0xFD) {
 				/* segment return */
 				assert(track.callreturn != 0);
-				DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X retn segment", time, tracknum, b1);
+				//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X retn segment", time, tracknum, b1);
 				track.playpos = track.callreturn;
 				track.callreturn = 0;
 				track.delay = this->ReadVariableLength(track.playpos);
@@ -362,8 +360,9 @@ struct AdlibPlayer {
 					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 					if (this->active_notes != 0) this->active_notes--;
 					this->DoPlayNote(tracknum, 0, b1);
-					if (track.dualtrack != 0) {
+					if (track.dualtrack) {
 						// dual channel play?
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X", time, track.dualtrack, b1);
 						this->DoPlayNote(track.dualtrack, 0, b1);
 					}
 					break;
@@ -372,8 +371,9 @@ struct AdlibPlayer {
 					b2 = this->songdata[track.playpos++];
 					if (b2 != 0) {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
-						if (track.dualtrack != 0 || !this->IsAnyChannelFree()) {
+						if (track.dualtrack && this->IsAnyChannelFree()) {
 							// dual channel play?
+							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual ON  %02X v=%02X", time, track.dualtrack, b1, b2);
 							TrackStatus &othertrack = this->tracks[track.dualtrack];
 							othertrack.program = track.program;
 							othertrack.pitchbend = track.pitchbend;
@@ -384,12 +384,15 @@ struct AdlibPlayer {
 					} else {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 						if (this->active_notes != 0) this->active_notes--;
-						this->DoPlayNote(track.dualtrack, 0, b1);
+						if (track.dualtrack) {
+							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X v=%02X", time, track.dualtrack, b1, b2);
+							this->DoPlayNote(track.dualtrack, 0, b1);
+						}
 						this->DoPlayNote(tracknum, 0, b1);
 					}
 					break;
 				case 0xB0:
-					// controller?
+					// controller
 					b2 = this->songdata[track.playpos++];
 					if (b1 == 7) {
 						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X set volume %d", time, tracknum, b2);
@@ -401,18 +404,18 @@ struct AdlibPlayer {
 							this->song_tempo = (uint32)b2 * 48 / 60;
 						}
 					} else if (b1 == 0x7E) {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual on tr=%X", time, tracknum, b2-1);
 						track.dualtrack = b2 - 1;
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual enable=%X", time, tracknum, track.dualtrack);
 						assert(track.dualtrack < 16);
 					} else if (b1 == 0x7F) {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual off", time, tracknum);
+						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual disable", time, tracknum);
 						track.dualtrack = 0;
 					}
 					break;
 				case 0xC0:
 					// program change
 					if (b1 == 0x7E) {
-						// repeat mark translates to end of song
+						// repeat mark: translates to end of song
 						this->status = Status::FINISHED;
 						return;
 					} else {
@@ -423,9 +426,9 @@ struct AdlibPlayer {
 				case 0xE0:
 					// pitch bend
 					track.pitchbend = b1 - 16;
-					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X pitchbend %d", time, tracknum, track.pitchbend);
+					//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X pitchbend %d", time, tracknum, track.pitchbend);
 					this->DoPitchbend(tracknum, track.pitchbend);
-					if (track.dualtrack != 0) {
+					if (track.dualtrack) {
 						TrackStatus &othertrack = this->tracks[track.dualtrack];
 						othertrack.pitchbend = track.pitchbend;
 						this->DoPitchbend(track.dualtrack, track.pitchbend);
@@ -451,7 +454,7 @@ struct AdlibPlayer {
 		this->tempo_ticks += 0x94;
 
 		// track 9 is percussion, play it last presumably so it overrides anything else
-		const byte trackorder[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 9 };
+		const byte trackorder[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15,/* 9*/ };
 		for (byte tr : trackorder) {
 			TrackStatus &trst = this->tracks[tr];
 			if (trst.playpos == 0) continue;
@@ -476,6 +479,7 @@ struct AdlibPlayer {
 		if (!this->IsPlaying()) return;
 
 		ThreadMutexLocker mlock(this->mutex);
+		int16 *playbuf = CallocT<int16>(samples);
 
 		if (this->status == Status::BEGIN_PLAY) this->RestartSong();
 
@@ -483,19 +487,20 @@ struct AdlibPlayer {
 		uint32 bufpos = 0;
 		while (this->lastsamplewritten < targetsamplewritten) {
 			uint32 towrite = min<uint32>((uint32)this->sampletime - this->lastsamplewritten, (uint32)samples - bufpos);
-			if (towrite > 0) OPL2::adlib_getsample(buffer + bufpos, towrite);
+			if (towrite > 0) OPL2::adlib_getsample(playbuf + bufpos, towrite);
 			this->lastsamplewritten += towrite;
-			bufpos += towrite * 2;
+			bufpos += towrite;
 			if (bufpos == samples) break; // exhausted pcm buffer, do not play more steps
 			if (!PlayStep()) break; // play step, break if end of song
 		}
-		fwrite(buffer, 4, samples, this->dump);
+		fwrite(playbuf, 2, samples, this->dump);
 
 		for (size_t i = 0; i < samples; i++) {
-			buffer[0] = buffer[0] * this->volume / 127;
-			buffer[1] = buffer[1] * this->volume / 127;
-			buffer += 2;
+			*buffer++ = playbuf[i] * this->volume / 127;
+			*buffer++ = playbuf[i] * this->volume / 127;
 		}
+
+		free(playbuf);
 	}
 
 	void RestartSong()
@@ -516,6 +521,8 @@ struct AdlibPlayer {
 				tr.delay = 0;
 			}
 		}
+		this->tempo_ticks = 60;
+		this->song_tempo = this->songdata[0] * 24 / 60; // initial tempo is always in first byte
 		this->status = Status::PLAYING;
 	}
 
@@ -534,21 +541,38 @@ struct AdlibPlayer {
 
 		/* amusic.com @ 0x1181 = load_song_data */
 		for (auto &tr : this->tracks) {
+			tr.program = 0xFF;
+			tr.volume = 127;
+			tr.pitchbend = 0;
+			tr.delay = 0;
+			tr.playpos = 0;
 			tr.trackstart = 0;
+			tr.callreturn = 0;
+			tr.dualtrack = 0;
+		}
+		for (auto &ch : this->channels) {
+			ch.contest = 0;
+			ch.cur_bn_fh = 0;
+			ch.cur_freqnum = 0;
+			ch.cur_note = 0;
+			ch.cur_program = 0xFF;
+			ch.owning_track = 0;
+			ch.velocity = 0;
 		}
 
 		ptrdiff_t pos = 0;
 		// first byte has initial tempo
-		this->song_tempo = this->songdata[pos++];
+		this->song_tempo = this->songdata[pos++] * 24 / 60;
 
-		// second byte has number of extra instrument definitions to load
-		uint16 num_extra_instruments = this->songdata[pos++];
-		this->extra_instruments.clear();
-		for (uint16 i = 0; i < num_extra_instruments; i++) {
-			InstrumentDef instr;
-			MemCpyT(&instr, (InstrumentDef*)(this->songdata + pos), 1);
-			this->extra_instruments.push_back(instr);
-			pos += sizeof(InstrumentDef);
+		// second byte has number of melodic patches to load
+		uint16 numpatches = this->songdata[pos++];
+		this->melpatches.clear();
+		for (uint16 i = 0; i < numpatches; i++) {
+			PatchDef instr;
+			MemCpyT(&instr, (PatchDef*)(this->songdata + pos), 1); // endian-safe, struct contains only bytes
+			this->melpatches.push_back(instr);
+			pos += sizeof(PatchDef);
+			static_assert(sizeof(PatchDef) == 24, "PatchDef must compile to 24 bytes");
 		}
 
 		// after instrument defs is a count of callable segments and the segments themselves
@@ -586,7 +610,7 @@ struct AdlibPlayer {
 
 static AdlibPlayer _adlib;
 
-uint16 AdlibPlayer::note_freqency[] = {
+const uint16 AdlibPlayer::note_freqency[] = {
 	0x00B5, 0x00C0, 0x00CC, 0x00D8, 0x00E5, 0x00F2, 0x0101, 0x0110,
 	0x0120, 0x0131, 0x0143, 0x0157, 0x016B, 0x0181, 0x0198, 0x01B0,
 	0x01CA, 0x01E5, 0x0202, 0x0220, 0x0241, 0x0263, 0x0287, 0x02AE,
@@ -602,7 +626,7 @@ uint16 AdlibPlayer::note_freqency[] = {
 	0x016B, 0x0181, 0x0198, 0x01B0, 0x01CA, 0x01E5, 0x0202, 0x0220,
 	0x0241, 0x0263, 0x0287, 0x02AE // 108 values defined, allocated for 128 to avoid overrun risks from bad data
 };
-byte AdlibPlayer::note_blocknum[] = {
+const byte AdlibPlayer::note_blocknum[] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -619,7 +643,7 @@ byte AdlibPlayer::note_blocknum[] = {
 	7, 7, 7, 7, 8, 8, 8, 8,
 	8, 8, 8, 8, 8, 8, 8, 8,
 };
-byte AdlibPlayer::pitchbend_scale[] = {
+const byte AdlibPlayer::pitchbend_scale[] = {
 	3, 3, 3, 3, 4, 4, 4, 4,
 	4, 5, 5, 5, 3, 3, 3, 3,
 	4, 4, 4, 4, 4, 5, 5, 5,
@@ -635,7 +659,7 @@ byte AdlibPlayer::pitchbend_scale[] = {
 	3, 3, 3, 3, 4, 4, 4, 4,
 	4, 5, 5, 5
 };
-AdlibPlayer::PercussionNote AdlibPlayer::perc_notes[] = {
+const AdlibPlayer::PercussionNote AdlibPlayer::perc_notes[] = {
 	{ 0x03, 0x15, 0x64 },
 	{ 0x03, 0x17, 0x64 },
 	{ 0x05, 0x31, 0x64 },
@@ -669,7 +693,7 @@ AdlibPlayer::PercussionNote AdlibPlayer::perc_notes[] = {
 	{ 0x10, 0x36, 0x4D },
 	{ 0x10, 0x31, 0x4D },
 };
-AdlibPlayer::InstrumentDef AdlibPlayer::perc_instruments[] = {
+const AdlibPlayer::PatchDef AdlibPlayer::prcpatches[] = {
 	{ 0x0F, 0x42, 0x3F, 0x3F, 0xFA, 0xFA, 0x41, 0x44, 0x02, 0x03, 0x0F },
 	{ 0x0F, 0x02, 0x3F, 0x3F, 0xFA, 0xFA, 0x51, 0x44, 0x02, 0x03, 0x0F },
 	{ 0x0F, 0x04, 0x3F, 0x3F, 0xE7, 0xDC, 0x51, 0x46, 0x02, 0x00, 0x0F },
@@ -688,8 +712,7 @@ AdlibPlayer::InstrumentDef AdlibPlayer::perc_instruments[] = {
 	{ 0x10, 0x10, 0x32, 0x3F, 0xF8, 0xD4, 0x96, 0x86, 0x00, 0x00, 0x0F },
 	{ 0x00, 0x10, 0x32, 0x3F, 0xF8, 0xD4, 0x96, 0x86, 0x02, 0x00, 0x0F },
 };
-
-AdlibPlayer::ChannelOperators AdlibPlayer::channel_operators[] = {
+const AdlibPlayer::ChannelOperators AdlibPlayer::channel_operators[] = {
 	{ 0x00, 0x03 }, { 0x01, 0x04 }, { 0x02, 0x05 },
 	{ 0x08, 0x0B }, { 0x09, 0x0C }, { 0x0A, 0x0D },
 	{ 0x10, 0x13 }, { 0x11, 0x14 }, { 0x12, 0x15 },
