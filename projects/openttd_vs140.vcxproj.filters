@@ -3090,6 +3090,12 @@
     <ClInclude Include="..\src\music\emu\opl.h">
       <Filter>Music</Filter>
     </ClInclude>
+    <ClCompile Include="..\src\music\emu\opl_nuked.cpp">
+      <Filter>Music</Filter>
+    </ClCompile>
+    <ClInclude Include="..\src\music\emu\opl_nuked.h">
+      <Filter>Music</Filter>
+    </ClInclude>
     <ClCompile Include="..\src\sound\null_s.cpp">
       <Filter>Sound</Filter>
     </ClCompile>

@@ -1131,6 +1131,8 @@ music/midifile.cpp
 music/adlib.cpp
 music/adlib.h
 music/emu/opl.h
+music/emu/opl_nuked.cpp
+music/emu/opl_nuked.h
 
 # Sound
 sound/null_s.cpp

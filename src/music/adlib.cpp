@@ -17,10 +17,50 @@
 #include <stdio.h>
 #include <vector>
 
+#define OPLIMPL 2
+
+#if OPLIMPL == 1
 namespace OPL2 {
 //#define OPLTYPE_IS_OPL3
 #include "emu/opl.cpp"
 }
+
+static void oplemu_init(uint32 rate)
+{
+	OPL2::adlib_init(rate);
+}
+
+static void oplemu_write(uint16 reg, byte val)
+{
+	OPL2::adlib_write(reg, val);
+}
+
+static void oplemu_render(int16 *buffer, size_t samples)
+{
+	OPL2::adlib_getsample(buffer, samples);
+}
+#elif OPLIMPL == 2
+#include "emu/opl_nuked.h"
+
+static OPL::NUKED::_opl3_chip _oplchip;
+
+static void oplemu_init(uint32 rate)
+{
+	OPL::NUKED::OPL3_Reset(&_oplchip, rate);
+}
+
+static void oplemu_write(uint16 reg, byte val)
+{
+	OPL::NUKED::OPL3_WriteReg(&_oplchip, reg, val);
+}
+
+static void oplemu_render(int16 *buffer, uint32 samples)
+{
+	OPL::NUKED::OPL3_GenerateStream(&_oplchip, buffer, samples);
+}
+#else
+#error No OPL2 implementation selected
+#endif
 
 
 /** Decoder for AdLib music data */
@@ -144,14 +184,14 @@ struct AdlibPlayer {
 	{
 		/* amusic.com @ 0x07EA = opl_reset */
 		for (byte reg = 1; reg <= 0xF5; reg++) {
-			OPL2::adlib_write(reg, 0);
+			oplemu_write(reg, 0);
 		}
-		OPL2::adlib_write(0x04, 0x60);
-		OPL2::adlib_write(0x04, 0x80);
-		OPL2::adlib_write(0x01, 0x20);
-		OPL2::adlib_write(0xA8, 0x01);
-		OPL2::adlib_write(0x08, 0x40);
-		OPL2::adlib_write(0xBD, 0xC0);
+		oplemu_write(0x04, 0x60);
+		oplemu_write(0x04, 0x80);
+		oplemu_write(0x01, 0x20);
+		oplemu_write(0xA8, 0x01);
+		oplemu_write(0x08, 0x40);
+		oplemu_write(0xBD, 0xC0);
 	}
 
 	void DoPlayNote(byte tracknum, byte velocity, byte notenum)
@@ -159,6 +199,9 @@ struct AdlibPlayer {
 		/* amusic.com @ 0x094C = opl_playnote */
 		assert(tracknum < 16);
 		assert(notenum < 128);
+
+		notenum--;
+
 		TrackStatus &track = this->tracks[tracknum];
 		if (track.program == 0xFF) return; // hack to prevent uninitialized tracks (typically dualtracks) from crashing
 
@@ -183,7 +226,7 @@ struct AdlibPlayer {
 				ChannelStatus &chst = this->channels[ch];
 				if (chst.cur_note == notenum && chst.owning_track == tracknum) {
 					chst.cur_note = 0;
-					OPL2::adlib_write(0xB0 + ch, chst.cur_bn_fh);
+					oplemu_write(0xB0 + ch, chst.cur_bn_fh);
 				}
 			}
 			return;
@@ -202,24 +245,24 @@ struct AdlibPlayer {
 		byte op2 = channel_operators[ch].op2;
 
 		if (needprogram) {
-			OPL2::adlib_write(0x20 + op1, instrument->op1_tvsk_fmf);
-			OPL2::adlib_write(0x20 + op2, instrument->op2_tvsk_fmf);
+			oplemu_write(0x20 + op1, instrument->op1_tvsk_fmf);
+			oplemu_write(0x20 + op2, instrument->op2_tvsk_fmf);
 			int8 keyscale = instrument->op1_ks_vol & 0xC0;
 			int8 attenuation = (1 + ~instrument->op1_ks_vol) & 0x3F;
-			OPL2::adlib_write(0x40 + op1, keyscale | attenuation);
+			oplemu_write(0x40 + op1, keyscale | attenuation);
 		}
 
-		OPL2::adlib_write(0xB0 + ch, chst.cur_bn_fh);
-		OPL2::adlib_write(0x40 + op2, ((velocity >> 1) ^ 0xFF) & 0x3F);
+		oplemu_write(0xB0 + ch, chst.cur_bn_fh);
+		oplemu_write(0x40 + op2, (((velocity*127) >> 8) ^ 0xFF) & 0x3F);
 
 		if (needprogram) {
-			OPL2::adlib_write(0x60 + op1, instrument->op1_atkdec);
-			OPL2::adlib_write(0x60 + op2, instrument->op2_atkdec);
-			OPL2::adlib_write(0x80 + op1, instrument->op1_susrel);
-			OPL2::adlib_write(0x80 + op2, instrument->op2_susrel);
-			OPL2::adlib_write(0xE0 + op1, instrument->op1_wfs);
-			OPL2::adlib_write(0xE0 + op2, instrument->op2_wfs);
-			OPL2::adlib_write(0xC0 + ch, instrument->ch_syntype);
+			oplemu_write(0x60 + op1, instrument->op1_atkdec);
+			oplemu_write(0x60 + op2, instrument->op2_atkdec);
+			oplemu_write(0x80 + op1, instrument->op1_susrel);
+			oplemu_write(0x80 + op2, instrument->op2_susrel);
+			oplemu_write(0xE0 + op1, instrument->op1_wfs);
+			oplemu_write(0xE0 + op2, instrument->op2_wfs);
+			oplemu_write(0xC0 + ch, instrument->ch_syntype ^ 1);
 		}
 
 		chst.cur_freqnum = this->CalcFrequency(tracknum, notenum);
@@ -238,8 +281,8 @@ struct AdlibPlayer {
 			if (chst.cur_note == 0) continue;
 			if (chst.owning_track != tracknum) continue;
 			chst.cur_freqnum = this->CalcFrequency(tracknum, chst.cur_note);
-			OPL2::adlib_write(0xA0 + ch, chst.cur_freqnum & 0xFF);
-			OPL2::adlib_write(0xB0 + ch, 0x20 | (this->note_blocknum[chst.cur_note] << 2) | (chst.cur_freqnum >> 8));
+			oplemu_write(0xA0 + ch, chst.cur_freqnum & 0xFF);
+			oplemu_write(0xB0 + ch, 0x20 | (this->note_blocknum[chst.cur_note] << 2) | (chst.cur_freqnum >> 8));
 		}
 	}
 
@@ -310,9 +353,9 @@ struct AdlibPlayer {
 	void DoNoteOn(byte ch, byte blocknum, uint16 freqnum)
 	{
 		assert(ch < 9);
-		OPL2::adlib_write(0xA0 + ch, freqnum & 0xFF);
+		oplemu_write(0xA0 + ch, freqnum & 0xFF);
 		this->channels[ch].cur_bn_fh = (blocknum << 2) | (freqnum >> 8);
-		OPL2::adlib_write(0xB0 + ch, this->channels[ch].cur_bn_fh | 0x20);
+		oplemu_write(0xB0 + ch, this->channels[ch].cur_bn_fh | 0x20);
 	}
 
 	void PlayTrackStep(byte tracknum)
@@ -357,12 +400,12 @@ struct AdlibPlayer {
 				case 0x80:
 					// note off
 					b2 = this->songdata[track.playpos++];
-					DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
+					//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 					if (this->active_notes != 0) this->active_notes--;
 					this->DoPlayNote(tracknum, 0, b1);
 					if (track.dualtrack) {
 						// dual channel play?
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X", time, track.dualtrack, b1);
+						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X", time, track.dualtrack, b1);
 						this->DoPlayNote(track.dualtrack, 0, b1);
 					}
 					break;
@@ -370,10 +413,10 @@ struct AdlibPlayer {
 					// note on-off
 					b2 = this->songdata[track.playpos++];
 					if (b2 != 0) {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
+						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
 						if (track.dualtrack && this->IsAnyChannelFree()) {
 							// dual channel play?
-							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual ON  %02X v=%02X", time, track.dualtrack, b1, b2);
+							//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual ON  %02X v=%02X", time, track.dualtrack, b1, b2);
 							TrackStatus &othertrack = this->tracks[track.dualtrack];
 							othertrack.program = track.program;
 							othertrack.pitchbend = track.pitchbend;
@@ -382,10 +425,10 @@ struct AdlibPlayer {
 						this->DoPlayNote(tracknum, b2 * track.volume / 128, b1);
 						this->active_notes++;
 					} else {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
+						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 						if (this->active_notes != 0) this->active_notes--;
 						if (track.dualtrack) {
-							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X v=%02X", time, track.dualtrack, b1, b2);
+							//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X v=%02X", time, track.dualtrack, b1, b2);
 							this->DoPlayNote(track.dualtrack, 0, b1);
 						}
 						this->DoPlayNote(tracknum, 0, b1);
@@ -454,7 +497,7 @@ struct AdlibPlayer {
 		this->tempo_ticks += 0x94;
 
 		// track 9 is percussion, play it last presumably so it overrides anything else
-		const byte trackorder[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15,/* 9*/ };
+		const byte trackorder[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 9 };
 		for (byte tr : trackorder) {
 			TrackStatus &trst = this->tracks[tr];
 			if (trst.playpos == 0) continue;
@@ -479,7 +522,7 @@ struct AdlibPlayer {
 		if (!this->IsPlaying()) return;
 
 		ThreadMutexLocker mlock(this->mutex);
-		int16 *playbuf = CallocT<int16>(samples);
+		int16 *playbuf = CallocT<int16>(samples*2);
 
 		if (this->status == Status::BEGIN_PLAY) this->RestartSong();
 
@@ -487,17 +530,17 @@ struct AdlibPlayer {
 		uint32 bufpos = 0;
 		while (this->lastsamplewritten < targetsamplewritten) {
 			uint32 towrite = min<uint32>((uint32)this->sampletime - this->lastsamplewritten, (uint32)samples - bufpos);
-			if (towrite > 0) OPL2::adlib_getsample(playbuf + bufpos, towrite);
+			if (towrite > 0) oplemu_render(playbuf + bufpos*2, towrite);
 			this->lastsamplewritten += towrite;
 			bufpos += towrite;
 			if (bufpos == samples) break; // exhausted pcm buffer, do not play more steps
 			if (!PlayStep()) break; // play step, break if end of song
 		}
-		fwrite(playbuf, 2, samples, this->dump);
+		fwrite(playbuf, 4, samples, this->dump);
 
 		for (size_t i = 0; i < samples; i++) {
-			*buffer++ = playbuf[i] * this->volume / 127;
-			*buffer++ = playbuf[i] * this->volume / 127;
+			buffer[i * 2 + 0] = playbuf[i * 2 + 0] * this->volume / 127;
+			buffer[i * 2 + 1] = playbuf[i * 2 + 1] * this->volume / 127;
 		}
 
 		free(playbuf);
@@ -729,7 +772,7 @@ const char * MusicDriver_AdLib::Start(const char * const * param)
 {
 	uint32 rate = MxSetMusicSource(RenderMusic);
 	_adlib.samples_step = rate / _adlib.steps_sec;
-	OPL2::adlib_init(rate);
+	oplemu_init(rate);
 
 	return nullptr;
 }
