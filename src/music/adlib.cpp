@@ -17,11 +17,11 @@
 #include <stdio.h>
 #include <vector>
 
-#define OPLIMPL 2
+#define OPLIMPL 1
 
 #if OPLIMPL == 1
 namespace OPL2 {
-//#define OPLTYPE_IS_OPL3
+#define OPLTYPE_IS_OPL3
 #include "emu/opl.cpp"
 }
 
