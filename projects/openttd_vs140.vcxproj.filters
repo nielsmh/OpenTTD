@@ -3087,6 +3087,9 @@
     <ClInclude Include="..\src\music\adlib.h">
       <Filter>Music</Filter>
     </ClInclude>
+    <ClCompile Include="..\src\music\emu\opl.cpp">
+      <Filter>Music</Filter>
+    </ClCompile>
     <ClInclude Include="..\src\music\emu\opl.h">
       <Filter>Music</Filter>
     </ClInclude>

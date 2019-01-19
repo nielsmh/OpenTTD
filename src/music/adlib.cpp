@@ -20,24 +20,26 @@
 #define OPLIMPL 1
 
 #if OPLIMPL == 1
-namespace OPL2 {
-#define OPLTYPE_IS_OPL3
-#include "emu/opl.cpp"
-}
+#include "emu/opl.h"
 
 static void oplemu_init(uint32 rate)
 {
-	OPL2::adlib_init(rate);
+	adlib_init(rate);
 }
 
 static void oplemu_write(uint16 reg, byte val)
 {
-	OPL2::adlib_write(reg, val);
+	adlib_write(reg, val);
 }
 
 static void oplemu_render(int16 *buffer, size_t samples)
 {
-	OPL2::adlib_getsample(buffer, samples);
+	int16 s;
+	for (; samples > 0; samples--) {
+		adlib_getsample(&s, 1);
+		*buffer++ = s;
+		*buffer++ = s;
+	}
 }
 #elif OPLIMPL == 2
 #include "emu/opl_nuked.h"
