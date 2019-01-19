@@ -20,7 +20,7 @@
 #define OPLIMPL 1
 
 #if OPLIMPL == 1
-#include "emu/opl.h"
+#include "emu/opl_ks.h"
 
 static void oplemu_init(uint32 rate)
 {

@@ -6,12 +6,12 @@
  *  modify it under the terms of the GNU Lesser General Public
  *  License as published by the Free Software Foundation; either
  *  version 2.1 of the License, or (at your option) any later version.
- * 
+ *
  *  This library is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *  Lesser General Public License for more details.
- * 
+ *
  *  You should have received a copy of the GNU Lesser General Public
  *  License along with this library; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -28,7 +28,7 @@
 #include <math.h>
 #include <stdlib.h> // rand()
 #include <string.h> // memset()
-#include "opl.h"
+#include "opl_ks.h"
 
 namespace {
 
@@ -207,7 +207,7 @@ static fltype frqmul[16];
 static Bit8u kslev[8][16];
 
 // map a channel number to the register offset of the modulator (=register base)
-static const Bit8u modulatorbase[9]	= {
+static const Bit8u modulatorbase[9] = {
 	0,1,2,
 	8,9,10,
 	16,17,18
@@ -286,7 +286,7 @@ static fltype decrelconst[4] = {
 
 void operator_advance(op_type* op_pt, Bit32s vib) {
 	op_pt->wfpos = op_pt->tcount; // waveform position
-	
+
 	// advance waveform time
 	op_pt->tcount += op_pt->tinc;
 	op_pt->tcount += (Bit32s)(op_pt->tinc)*vib/FIXEDPT;
@@ -421,7 +421,7 @@ void operator_attack(op_type* op_pt) {
 
 	Bit32u num_steps_add = op_pt->generator_pos/FIXEDPT; // number of (standardized) samples
 	for (Bit32u ct=0; ct<num_steps_add; ct++) {
-		op_pt->cur_env_step++;	// next sample
+		op_pt->cur_env_step++; // next sample
 		if ((op_pt->cur_env_step & op_pt->env_step_a)==0) { // check if next step already reached
 			if (op_pt->amp > 1.0) {
 				// attack phase finished, next: decay
@@ -466,7 +466,7 @@ void change_attackrate(Bitu regbase, op_type* op_pt) {
 		op_pt->env_step_a = (1<<(steps<=12?12-steps:0))-1;
 
 		Bits step_num = (step_skip<=48)?(4-(step_skip&3)):0;
-		static Bit8u step_skip_mask[5] = {0xff, 0xfe, 0xee, 0xba, 0xaa}; 
+		static Bit8u step_skip_mask[5] = {0xff, 0xfe, 0xee, 0xba, 0xaa};
 		op_pt->env_step_skip_a = step_skip_mask[step_num];
 
 #if defined(OPLTYPE_IS_OPL3)
@@ -1147,7 +1147,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						operator_advance(&cptr[9],vibval1[i]);
 						opfuncs[cptr[9].op_state](&cptr[9]);
 						operator_output(&cptr[9],0,tremval1[i]);
-						
+
 						Bit32s chanval = cptr[9].cval*2;
 						CHANVAL_OUT
 					}
@@ -1179,7 +1179,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 						operator_advance(&cptr[9],vibval2[i]);
 						opfuncs[cptr[9].op_state](&cptr[9]);
 						operator_output(&cptr[9],cptr[0].cval*FIXEDPT,tremval2[i]);
-						
+
 						Bit32s chanval = cptr[9].cval*2;
 						CHANVAL_OUT
 					}
@@ -1493,7 +1493,7 @@ void adlib_getsample(Bit16s* sndptr, Bits numsamples) {
 
 					} else {
 						// FM-FM-style synthesis (op1[fb] * op2 * op3 * op4)
-						if ((cptr[0].op_state != OF_TYPE_OFF) || (cptr[9].op_state != OF_TYPE_OFF) || 
+						if ((cptr[0].op_state != OF_TYPE_OFF) || (cptr[9].op_state != OF_TYPE_OFF) ||
 							(cptr[3].op_state != OF_TYPE_OFF) || (cptr[3+9].op_state != OF_TYPE_OFF)) {
 							if ((cptr[0].vibrato) && (cptr[0].op_state != OF_TYPE_OFF)) {
 								vibval1 = vibval_var1;

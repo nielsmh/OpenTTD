@@ -3087,10 +3087,10 @@
     <ClInclude Include="..\src\music\adlib.h">
       <Filter>Music</Filter>
     </ClInclude>
-    <ClCompile Include="..\src\music\emu\opl.cpp">
+    <ClCompile Include="..\src\music\emu\opl_ks.cpp">
       <Filter>Music</Filter>
     </ClCompile>
-    <ClInclude Include="..\src\music\emu\opl.h">
+    <ClInclude Include="..\src\music\emu\opl_ks.h">
       <Filter>Music</Filter>
     </ClInclude>
     <ClCompile Include="..\src\music\emu\opl_nuked.cpp">
