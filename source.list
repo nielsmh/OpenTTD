@@ -1134,6 +1134,8 @@ music/emu/opl_ks.cpp
 music/emu/opl_ks.h
 music/emu/opl_nuked.cpp
 music/emu/opl_nuked.h
+music/emu/dbopl.cpp
+music/emu/dbopl.h
 
 # Sound
 sound/null_s.cpp

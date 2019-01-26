@@ -16,7 +16,7 @@
 #include <stdio.h>
 #include <vector>
 
-#define OPLIMPL 1
+#define OPLIMPL 3
 
 #if OPLIMPL == 1
 #include "emu/opl_ks.h"
@@ -58,6 +58,40 @@ static void oplemu_write(uint16 reg, byte val)
 static void oplemu_render(int16 *buffer, uint32 samples)
 {
 	OPL::NUKED::OPL3_GenerateStream(&_oplchip, buffer, samples);
+}
+#elif OPLIMPL == 3
+#include "emu/dbopl.h"
+
+static OPL::DOSBox::DBOPL::Chip _oplchip;
+
+static void oplemu_init(uint32 rate)
+{
+	OPL::DOSBox::DBOPL::InitTables();
+	_oplchip.Setup(rate);
+}
+
+static void oplemu_write(uint16 reg, byte val)
+{
+	_oplchip.WriteReg(reg, val);
+}
+
+static void oplemu_render(int16 *buffer, uint32 samples)
+{
+	const uint bufferLength = 512;
+	int32 tempBuffer[bufferLength * 2];
+	while (samples > 0) {
+		const uint readSamples = min<uint>(samples, bufferLength);
+
+		_oplchip.GenerateBlock2(readSamples, tempBuffer);
+
+		for (uint i = 0; i < readSamples; ++i) {
+			buffer[i * 2 + 0] = tempBuffer[i];
+			buffer[i * 2 + 1] = tempBuffer[i];
+		}
+
+		buffer += readSamples * 2;
+		samples -= readSamples;
+	}
 }
 #else
 #error No OPL2 implementation selected
