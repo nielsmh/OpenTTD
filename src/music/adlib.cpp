@@ -34,7 +34,7 @@ static void oplemu_write(uint16 reg, byte val)
 
 static void oplemu_render(int16 *buffer, uint32 samples)
 {
-	const uint bufferLength = 512;
+	const uint bufferLength = 128;
 	int32 tempBuffer[bufferLength * 2];
 	while (samples > 0) {
 		const uint readSamples = min<uint>(samples, bufferLength);
