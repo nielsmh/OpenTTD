@@ -3087,18 +3087,6 @@
     <ClInclude Include="..\src\music\adlib.h">
       <Filter>Music</Filter>
     </ClInclude>
-    <ClCompile Include="..\src\music\emu\opl_ks.cpp">
-      <Filter>Music</Filter>
-    </ClCompile>
-    <ClInclude Include="..\src\music\emu\opl_ks.h">
-      <Filter>Music</Filter>
-    </ClInclude>
-    <ClCompile Include="..\src\music\emu\opl_nuked.cpp">
-      <Filter>Music</Filter>
-    </ClCompile>
-    <ClInclude Include="..\src\music\emu\opl_nuked.h">
-      <Filter>Music</Filter>
-    </ClInclude>
     <ClCompile Include="..\src\music\emu\dbopl.cpp">
       <Filter>Music</Filter>
     </ClCompile>

@@ -16,51 +16,8 @@
 #include <stdio.h>
 #include <vector>
 
-#define OPLIMPL 3
-
-#if OPLIMPL == 1
-#include "emu/opl_ks.h"
-
-static void oplemu_init(uint32 rate)
-{
-	adlib_init(rate);
-}
-
-static void oplemu_write(uint16 reg, byte val)
-{
-	adlib_write(reg, val);
-}
-
-static void oplemu_render(int16 *buffer, size_t samples)
-{
-	int16 s;
-	for (; samples > 0; samples--) {
-		adlib_getsample(&s, 1);
-		*buffer++ = s;
-		*buffer++ = s;
-	}
-}
-#elif OPLIMPL == 2
-#include "emu/opl_nuked.h"
-
-static OPL::NUKED::_opl3_chip _oplchip;
-
-static void oplemu_init(uint32 rate)
-{
-	OPL::NUKED::OPL3_Reset(&_oplchip, rate);
-}
-
-static void oplemu_write(uint16 reg, byte val)
-{
-	OPL::NUKED::OPL3_WriteReg(&_oplchip, reg, val);
-}
-
-static void oplemu_render(int16 *buffer, uint32 samples)
-{
-	OPL::NUKED::OPL3_GenerateStream(&_oplchip, buffer, samples);
-}
-#elif OPLIMPL == 3
 #include "emu/dbopl.h"
+
 
 static OPL::DOSBox::DBOPL::Chip _oplchip;
 
@@ -93,9 +50,6 @@ static void oplemu_render(int16 *buffer, uint32 samples)
 		samples -= readSamples;
 	}
 }
-#else
-#error No OPL2 implementation selected
-#endif
 
 
 /** Decoder for AdLib music data */
