@@ -273,7 +273,7 @@ void MusicSystem::CheckStatus()
 	}
 	if (this->active_playlist.empty()) return;
 	/* If we were supposed to be playing, but music has stopped, move to next song */
-	if (this->IsPlaying() && !this->active_driver->IsSongPlaying()) this->Next();
+	if (this->IsPlaying() && (!this->active_driver || !this->active_driver->IsSongPlaying())) this->Next();
 }
 
 void MusicSystem::SetVolume(byte volume)
@@ -284,7 +284,7 @@ void MusicSystem::SetVolume(byte volume)
 /** Is the player getting music right now? */
 bool MusicSystem::IsPlaying() const
 {
-	return _settings_client.music.playing && !this->active_playlist.empty() && this->active_driver;
+	return _settings_client.music.playing && !this->active_playlist.empty();
 }
 
 /** Is shuffle mode enabled? */
