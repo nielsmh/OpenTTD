@@ -24,6 +24,9 @@
     <CustomBuild Include="..\media\baseset\orig_dos_de.obg">
       <Filter>Baseset Metadata</Filter>
     </CustomBuild>
+    <CustomBuild Include="..\media\baseset\orig_ttda.obm">
+      <Filter>Baseset Metadata</Filter>
+    </CustomBuild>
     <CustomBuild Include="..\media\baseset\orig_tto.obm">
       <Filter>Baseset Metadata</Filter>
     </CustomBuild>

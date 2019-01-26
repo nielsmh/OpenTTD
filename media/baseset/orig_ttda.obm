@@ -4,10 +4,10 @@
 ; Tycoon Deluxe for DOS CD.
 ;
 [metadata]
-name              = original_adlib
+name              = original_ttda
 shortname         = TTDA
 version           = 1
-description       = Original Transport Tycoon Deluxe DOS edition music for AdLib FM synthesis.
+!! description STR_BASEMUSIC_TTDA_DESCRIPTION
 
 [files]
 theme = adlib.cat

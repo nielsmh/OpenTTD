@@ -68,6 +68,12 @@
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Langs);..\bin\baseset\orig_extra.grf;%(AdditionalInputs)</AdditionalInputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\bin\baseset\orig_dos_de.obg;%(Outputs)</Outputs>
     </CustomBuild>
+    <CustomBuild Include="..\media\baseset\orig_ttda.obm">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generating orig_ttda.obm baseset metadata file</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cscript //nologo ..\media\baseset\translations.vbs "%(FullPath)" "$(OutputPath)orig_ttda.obm" ..\src\lang ..\bin\baseset\orig_extra.grf</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(Langs);..\bin\baseset\orig_extra.grf;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\bin\baseset\orig_ttda.obm;%(Outputs)</Outputs>
+    </CustomBuild>
     <CustomBuild Include="..\media\baseset\orig_tto.obm">
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Generating orig_tto.obm baseset metadata file</Message>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">cscript //nologo ..\media\baseset\translations.vbs "%(FullPath)" "$(OutputPath)orig_tto.obm" ..\src\lang ..\bin\baseset\orig_extra.grf</Command>

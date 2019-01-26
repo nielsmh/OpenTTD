@@ -4631,6 +4631,7 @@ STR_BASESOUNDS_NONE_DESCRIPTION                                 :A sound pack wi
 STR_BASEMUSIC_WIN_DESCRIPTION                                   :Original Transport Tycoon Deluxe Windows edition music.
 STR_BASEMUSIC_DOS_DESCRIPTION                                   :Original Transport Tycoon Deluxe DOS edition music.
 STR_BASEMUSIC_TTO_DESCRIPTION                                   :Original Transport Tycoon (Original/World Editor) DOS edition music.
+STR_BASEMUSIC_TTDA_DESCRIPTION                                  :Original Transport Tycoon Deluxe DOS edition music for AdLib/OPL2 synthesis.
 STR_BASEMUSIC_NONE_DESCRIPTION                                  :A music pack without actual music.
 
 ##id 0x2000
