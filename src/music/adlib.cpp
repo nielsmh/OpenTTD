@@ -175,7 +175,6 @@ struct AdlibPlayer {
 	byte *songdata;             ///< owned copy of raw song data
 	size_t songdatalen;         ///< length of songdata buffer
 	ThreadMutex *mutex;         ///< mutex for access to songdata
-	FILE *dump;
 
 	/* Keeping track of pcm output */
 	uint32 lastsamplewritten;   ///< last sample number written
@@ -190,13 +189,11 @@ struct AdlibPlayer {
 		this->songdata = nullptr;
 		this->songdatalen = 0;
 		this->mutex = ThreadMutex::New();
-		this->dump = fopen("adlib_dump.pcm", "wb");
 	}
 
 	virtual ~AdlibPlayer()
 	{
 		delete this->mutex;
-		fclose(this->dump);
 	}
 
 	bool IsPlaying()
@@ -557,7 +554,6 @@ struct AdlibPlayer {
 			if (bufpos == samples) break; // exhausted pcm buffer, do not play more steps
 			if (!PlayStep()) break; // play step, break if end of song
 		}
-		fwrite(playbuf, 4, samples, this->dump);
 
 		for (size_t i = 0; i < samples; i++) {
 			buffer[i * 2 + 0] = playbuf[i * 2 + 0] * this->volume / 127;
