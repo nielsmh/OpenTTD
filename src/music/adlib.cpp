@@ -13,7 +13,6 @@
 #include "../base_media_base.h"
 #include "../core/endian_func.hpp"
 #include "../thread/thread.h"
-#include "../debug.h"
 #include <stdio.h>
 #include <vector>
 
@@ -375,7 +374,6 @@ struct AdlibPlayer {
 				/* segment call */
 				b1 = this->songdata[track.playpos++];
 				assert(b1 < this->segments.size());
-				//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X call segment %02X", time, tracknum, b1);
 				track.callreturn = track.playpos;
 				track.playpos = this->segments[b1];
 				track.delay = this->ReadVariableLength(track.playpos);
@@ -383,7 +381,6 @@ struct AdlibPlayer {
 			} else if (b1 == 0xFD) {
 				/* segment return */
 				assert(track.callreturn != 0);
-				//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X retn segment", time, tracknum, b1);
 				track.playpos = track.callreturn;
 				track.callreturn = 0;
 				track.delay = this->ReadVariableLength(track.playpos);
@@ -402,12 +399,10 @@ struct AdlibPlayer {
 				case 0x80:
 					// note off
 					b2 = this->songdata[track.playpos++];
-					//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 					if (this->active_notes != 0) this->active_notes--;
 					this->DoPlayNote(tracknum, 0, b1);
 					if (track.dualtrack) {
 						// dual channel play?
-						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X", time, track.dualtrack, b1);
 						this->DoPlayNote(track.dualtrack, 0, b1);
 					}
 					break;
@@ -415,10 +410,8 @@ struct AdlibPlayer {
 					// note on-off
 					b2 = this->songdata[track.playpos++];
 					if (b2 != 0) {
-						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note ON  %02X v=%02X", time, tracknum, b1, b2);
 						if (track.dualtrack && this->IsAnyChannelFree()) {
 							// dual channel play?
-							//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual ON  %02X v=%02X", time, track.dualtrack, b1, b2);
 							TrackStatus &othertrack = this->tracks[track.dualtrack];
 							othertrack.program = track.program;
 							othertrack.pitchbend = track.pitchbend;
@@ -427,10 +420,8 @@ struct AdlibPlayer {
 						this->DoPlayNote(tracknum, b2 * track.volume / 128, b1);
 						this->active_notes++;
 					} else {
-						//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X note OFF %02X", time, tracknum, b1);
 						if (this->active_notes != 0) this->active_notes--;
 						if (track.dualtrack) {
-							//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual OFF %02X v=%02X", time, track.dualtrack, b1, b2);
 							this->DoPlayNote(track.dualtrack, 0, b1);
 						}
 						this->DoPlayNote(tracknum, 0, b1);
@@ -440,20 +431,16 @@ struct AdlibPlayer {
 					// controller
 					b2 = this->songdata[track.playpos++];
 					if (b1 == 7) {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X set volume %d", time, tracknum, b2);
 						if (b2 != 0) b2++;
 						track.volume = b2;
 					} else if (b1 == 0) {
 						if (b2 != 0) {
-							DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X set tempo %d", time, tracknum, b2);
 							this->song_tempo = (uint32)b2 * 48 / 60;
 						}
 					} else if (b1 == 0x7E) {
 						track.dualtrack = b2 - 1;
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual enable=%X", time, tracknum, track.dualtrack);
 						assert(track.dualtrack < 16);
 					} else if (b1 == 0x7F) {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X dual disable", time, tracknum);
 						track.dualtrack = 0;
 					}
 					break;
@@ -464,14 +451,12 @@ struct AdlibPlayer {
 						this->status = Status::FINISHED;
 						return;
 					} else {
-						DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X program %d", time, tracknum, b1);
 						track.program = b1;
 					}
 					break;
 				case 0xE0:
 					// pitch bend
 					track.pitchbend = b1 - 16;
-					//DEBUG(driver, 0, "[t=%6.2f] AdLib: Track %X pitchbend %d", time, tracknum, track.pitchbend);
 					this->DoPitchbend(tracknum, track.pitchbend);
 					if (track.dualtrack) {
 						TrackStatus &othertrack = this->tracks[track.dualtrack];
