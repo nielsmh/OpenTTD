@@ -152,7 +152,7 @@ struct AdlibPlayer {
 
 	AdlibPlayer()
 	{
-		this->steps_sec = 60 * 60 / 24;
+		this->steps_sec = 60 * 60 / 24; // measured within 1% of the original driver's speed
 		this->status = Status::STOPPED;
 		this->songdata = nullptr;
 		this->songdatalen = 0;
