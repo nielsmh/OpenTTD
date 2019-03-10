@@ -1,3 +1,34 @@
+1.10.0-beta1 (2019-??-??)
+------------------------------------------------------------------------
+- Feature: New method for pax generation in towns, population linear (new default) makes stations in dense areas less likely to be flooded with passengers. (#6965)
+- Feature: Option to no longer allow player stations to directly serve industries that have their own station, e.g. Oil Rigs. This prevents the "exploit" of building train stations next to Oil Rigs. (#7234)
+- Feature: Non-rectangular station catchment areas, the catchment area now works the way you would intuitively expect. This prevents some exploits regarding stations covering large area. (#7235)
+- Add: Configurable curve penalties for ships (make them less likely to take sharp turns.) (#7289)
+- Add: [NoAI] API for vehicle group colours (#7336)
+- Add: [Performance] Path cache for road vehicles, improves performance in games with very large numbers of road vehicles. (#7261)
+- Add: [NewGRF] Flag on railtypes to allow pre-combined group sprites. (#7231)
+- Add: [NewGRF] Flag on railtypes to always/never allow 90 degree turns on that railtype, regardless of game setting. (#7352)
+- Add: [UI] Rail station construction window can be shaded. (#7341)
+- Change: Large airplanes always have a risk of crashing at small airports, regardless of "aircraft crashes" disaster setting. (#7302)
+- Change: The "forbid 90 degree turns" setting no longer applies to ships. (#7232)
+- Change: [Performance] Better algorithm to determine owning town for bridges, when towns are deleted. This can improve worldgen time significantly on very large maps. (#7284)
+- Codechange: [Performance] Searches for nearest stations, nearest towns, and what signs to display on screen are now handled by a "k-d tree" data structure. (#7250)
+- Fix: Querying the station tile of water industries other than Oil Rig (e.g. Fishing Grounds in FIRS) now shows the correct industry name. (#7349)
+- Remove: Support for MorphOS/AmigaOS (#7326)
+- Remove: Support BeOS (Haiku is still supported) (#7326)
+
+
+1.9.0-RC1 (2019-03-03)
+------------------------------------------------------------------------
+- Add: Various AI/GS functions for vehicle groups (#7225)
+- Change: Synchronise introduction date and reliability randomness across vehicles with the same base introduction date (#7147)
+- Change: Allow towns to build bridges over rails and one-way roads (#7291)
+- Fix: Detection of coast tiles with trees on them (#7309)
+- Fix: Emergency netsave saved the title game instead of the broken game in question (#7298)
+- Fix: Company livery window showed incorrect groups when opened in multiplayer (#7288)
+- Fix: Unable to select last group in open livery window (#7283)
+- Fix: Goto hangar orders were not invalidated when rebuilding airports (#7100)
+
 1.9.0-beta3 (2019-02-24)
 ------------------------------------------------------------------------
 - Feature: Option to adjust font size separately from GUI size (#7003)
