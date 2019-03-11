@@ -116,6 +116,7 @@ viewport.cpp
 waypoint.cpp
 widget.cpp
 window.cpp
+zone.cpp
 
 # Header Files
 #if ALLEGRO
@@ -400,6 +401,8 @@ window_func.h
 window_gui.h
 window_type.h
 sound/xaudio2_s.h
+zone_func.h
+zone_type.h
 zoom_func.h
 zoom_type.h
 #if WIN32

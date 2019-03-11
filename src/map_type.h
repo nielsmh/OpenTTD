@@ -36,6 +36,8 @@ struct TileExtended {
 	byte m6;   ///< General purpose
 	byte m7;   ///< Primarily used for newgrf support
 	uint16 m8; ///< General purpose
+	byte zone; ///< Tile zone
+	/* TODO: 5 is a bad struct size. Pad it? Or move zone to a separate array? */
 };
 
 /**
