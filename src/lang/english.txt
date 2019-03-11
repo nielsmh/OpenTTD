@@ -2873,6 +2873,41 @@ STR_GENERATION_PREPARING_TILELOOP                               :{BLACK}Running 
 STR_GENERATION_PREPARING_SCRIPT                                 :{BLACK}Running script
 STR_GENERATION_PREPARING_GAME                                   :{BLACK}Preparing game
 
+# Map zones
+STR_MAPZONE_NAME_DEFAULT                                        :None
+STR_MAPZONE_NAME_OCEAN                                          :Deep sea
+STR_MAPZONE_NAME_SEA                                            :Shallow sea
+STR_MAPZONE_NAME_MOUNTAIN                                       :Bedrock mountains
+STR_MAPZONE_NAME_FROM_TOWN                                      :County of {TOWN}
+STR_MAPZONE_NAME_FROM_INDEX                                     :Zone {NUM}
+STR_MAPZONE_NAME_CUSTOM                                         :{RAW_STRING}
+############# Map zone restrictions - leave in order
+STR_MAPZONE_RESTRICTION_TERRAFORM                               :Raise/lower land
+STR_MAPZONE_RESTRICTION_CLEAR_NATURE                            :Remove vegetation
+STR_MAPZONE_RESTRICTION_CLEAR_WATER                             :Remove water
+STR_MAPZONE_RESTRICTION_CLEAR_OBJECT                            :Remove map objects
+STR_MAPZONE_RESTRICTION_BRIDGE_ABOVE                            :Build bridges above
+STR_MAPZONE_RESTRICTION_BRIDGE_HEAD                             :Start/end bridges
+STR_MAPZONE_RESTRICTION_TUNNEL_BELOW                            :Build tunnels below
+STR_MAPZONE_RESTRICTION_TUNNEL_HEAD                             :Start/end tunnels
+STR_MAPZONE_RESTRICTION_ROAD                                    :Build roads and trams
+STR_MAPZONE_RESTRICTION_RAIL                                    :Build railroads
+STR_MAPZONE_RESTRICTION_RAIL_FAST                               :Build high-speed rail
+STR_MAPZONE_RESTRICTION_CANALS                                  :Build canals and locks
+STR_MAPZONE_RESTRICTION_AIRPORT_SM                              :Build small airports
+STR_MAPZONE_RESTRICTION_AIRPORT_LG                              :Build large airports
+STR_MAPZONE_RESTRICTION_AIRPORT_HU                              :Build hub airports
+STR_MAPZONE_RESTRICTION_HELIPORT                                :Build helicopter airports
+STR_MAPZONE_RESTRICTION_HEADQUARTER                             :Build company headquarters
+STR_MAPZONE_RESTRICTION_BUY_LAND                                :Buy land
+STR_MAPZONE_RESTRICTION_FOUND_INDUSTRY                          :Found industries
+STR_MAPZONE_RESTRICTION_FOUND_TOWN                              :Found towns
+STR_MAPZONE_RESTRICTION_STATION_BUS                             :Build bus stations
+STR_MAPZONE_RESTRICTION_STATION_TRUCK                           :Build truck stations
+STR_MAPZONE_RESTRICTION_STATION_RAIL                            :Build railroad stations
+STR_MAPZONE_RESTRICTION_STATION_DOCK                            :Build docks
+############# End map zone restrictions
+
 # NewGRF settings
 STR_NEWGRF_SETTINGS_CAPTION                                     :{WHITE}NewGRF Settings
 STR_NEWGRF_SETTINGS_INFO_TITLE                                  :{WHITE}Detailed NewGRF information

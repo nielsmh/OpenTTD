@@ -10,7 +10,7 @@
 #ifndef ZONE_FUNC_H
 #define ZONE_FUNC_H
 
-void ResetMapZones();
+void ResetMapZones(bool use_ocean, bool use_mountain);
 
 #endif
 

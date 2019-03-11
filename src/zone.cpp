@@ -16,6 +16,7 @@
 
 MapZone _map_zones[0x100];
 
+
 static void ResetZone(MapZone &zone)
 {
 	for (MapZoneBuildRestriction &r : zone.company_restrictions) {
@@ -34,13 +35,18 @@ static void ResetDefaultZone()
 	_map_zones[MZ_DEFAULT].in_use = true;
 }
 
-static void ResetOceanZone(bool use)
+static void ResetOceanZones(bool use)
 {
-	MapZone &zone = _map_zones[MZ_OCEAN];
-	ResetZone(zone);
+	MapZone &zone1 = _map_zones[MZ_OCEAN];
+	MapZone &zone2 = _map_zones[MZ_SEA];
 
-	zone.in_use = use;
-	zone.company_restrictions[OWNER_DEITY] = MZR_TERRAFORM | MZR_BRIDGE_ABOVE | MZR_TUNNEL_BELOW | MZR_CLEAR_WATER;
+	ResetZone(zone1);
+	zone1.in_use = use;
+	zone1.company_restrictions[OWNER_DEITY] = MZR_TERRAFORM | MZR_BRIDGE_ABOVE | MZR_TUNNEL_BELOW | MZR_CLEAR_WATER;
+
+	ResetZone(zone2);
+	zone2.in_use = use;
+	zone2.company_restrictions[OWNER_DEITY] = MZR_TERRAFORM | MZR_CLEAR_WATER;
 }
 
 static void ResetMountainZone(bool use)
@@ -52,14 +58,18 @@ static void ResetMountainZone(bool use)
 	zone.company_restrictions[OWNER_DEITY] = MZR_TERRAFORM;
 }
 
-void ResetMapZones()
+/**
+ * Clear all zones and set back to defaults.
+ */
+void ResetMapZones(bool use_ocean, bool use_mountain)
 {
 	for (MapZone &zone : _map_zones) ResetZone(zone);
 
 	ResetDefaultZone();
-	ResetOceanZone(false);
-	ResetMountainZone(false);
+	ResetOceanZones(use_ocean);
+	ResetMountainZone(use_mountain);
 }
+
 
 /**
  * Retrieve the map zone object for a tile.

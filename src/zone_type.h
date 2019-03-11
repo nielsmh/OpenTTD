@@ -21,6 +21,7 @@
 enum MapTileZone : byte {
 	MZ_DEFAULT = 0,  ///< Default map zone with no particular rules
 	MZ_OCEAN,        ///< Deep ocean map zone
+	MZ_SEA,          ///< Shallow ocean map zone
 	MZ_MOUNTAIN,     ///< Bedrock mountain zone
 	/* Values up to MZ_USER1 are reserved for future built-in zones */
 	MZ_USER1 = 0x10, ///< First scenario-defined zone, all values past this are free
@@ -33,9 +34,9 @@ enum MapTileZone : byte {
 enum MapZoneBuildRestriction : uint32 {
 	MZR_NONE = 0,
 	MZR_TERRAFORM      = 1 << 0,  ///< May not change tile heights
-	MZR_CLEAR_NATURE   = 1 << 1,  ///< May not clear natural features (trees, rocky patches) (TODO: generic objects?)
+	MZR_CLEAR_NATURE   = 1 << 1,  ///< May not clear natural features (trees, rocky patches)
 	MZR_CLEAR_WATER    = 1 << 2,  ///< May not clear water tiles (incl. river tiles, also block convert to canals)
-	/* bit 3 reserved */
+	MZR_CLEAR_OBJECT   = 1 << 3,  ///< May not clear other map objects
 	MZR_BRIDGE_ABOVE   = 1 << 4,  ///< May not bridge above the zone
 	MZR_BRIDGE_HEAD    = 1 << 5,  ///< May not start/end bridges in the zone
 	MZR_TUNNEL_BELOW   = 1 << 6,  ///< May not tunnel below the zone
@@ -52,6 +53,10 @@ enum MapZoneBuildRestriction : uint32 {
 	MZR_BUY_LAND       = 1 << 17, ///< May not buy land in zone
 	MZR_FOUND_INDUSTRY = 1 << 18, ///< May not found industries in zone (and prospecting auto-fails in this zone)
 	MZR_FOUND_TOWN     = 1 << 19, ///< May not found towns in this zone
+	MZR_STATION_BUS    = 1 << 20, ///< May not build bus stations/stops
+	MZR_STATION_TRUCK  = 1 << 21, ///< May not build truck loading bays/stops
+	MZR_STATION_RAIL   = 1 << 22, ///< May not build rail stations
+	MZR_STATION_DOCK   = 1 << 23, ///< May not build docks
 	MZR_ALL = 0xFFFFFFFF, ///< May not do anything at all
 };
 DECLARE_ENUM_AS_BIT_SET(MapZoneBuildRestriction)
