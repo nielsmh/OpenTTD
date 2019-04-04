@@ -70,19 +70,7 @@ struct Depot : DepotPool::PoolItem<&_depot_pool> {
 		return this->delete_ctr == 0;
 	}
 
-	/**
-	 * Cancel deletion of this depot (reuse it).
-	 * @param xy New location of the depot.
-	 * @see Depot::IsInUse
-	 * @see Depot::Disuse
-	 */
-	inline void Reuse(TileIndex xy)
-	{
-		this->delete_ctr = 0;
-		this->xy = xy;
-		this->sign.MarkDirty(); // the sign will be invisible from now
-	}
-
+	void Reuse(TileIndex xy);
 	void Disuse();
 
 	void UpdateVirtCoord();

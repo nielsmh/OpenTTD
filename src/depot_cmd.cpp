@@ -21,6 +21,7 @@
 #include "vehicle_gui.h"
 #include "vehiclelist.h"
 #include "window_func.h"
+#include "viewport_kdtree.h"
 
 #include "table/strings.h"
 
@@ -93,6 +94,8 @@ CommandCost CmdRenameDepot(TileIndex tile, DoCommandFlag flags, uint32 p1, uint3
 	}
 
 	if (flags & DC_EXEC) {
+		/* _viewport_sign_kdtree does not need to be updated, only in-use depots can be renamed */
+
 		free(d->name);
 
 		if (reset) {
@@ -142,7 +145,10 @@ void OnTick_Depot()
 	Depot *d;
 	FOR_ALL_DEPOTS(d) {
 		if ((_tick_counter + d->index) % DEPOT_REMOVAL_TICKS == 0) {
-			if (!d->IsInUse() && --d->delete_ctr == 0) delete d;
+			if (!d->IsInUse() && --d->delete_ctr == 0) {
+				_viewport_sign_kdtree.Remove(ViewportSignKdtreeItem::MakeDepot(d->index));
+				delete d;
+			}
 		}
 	}
 }

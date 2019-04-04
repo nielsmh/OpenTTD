@@ -2626,6 +2626,7 @@ CommandCost CmdRenameTown(TileIndex tile, DoCommandFlag flags, uint32 p1, uint32
 		InvalidateWindowData(WC_TOWN_DIRECTORY, 0, 1);
 		UpdateAllStationVirtCoords();
 		UpdateAllDepotVirtCoords();
+		RebuildViewportKdtree();
 	}
 	return CommandCost();
 }
