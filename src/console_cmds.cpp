@@ -28,6 +28,7 @@
 #include "genworld.h"
 #include "strings_func.h"
 #include "viewport_func.h"
+#include "vehicle_func.h"
 #include "window_func.h"
 #include "date_func.h"
 #include "company_func.h"
@@ -1861,6 +1862,54 @@ DEF_CONSOLE_CMD(ConNewGRFReload)
 	return true;
 }
 
+DEF_CONSOLE_CMD(ConDumpEngines)
+{
+	if (argc == 0) {
+		IConsoleHelp("Write a list of all engine types available with the loaded NewGRFs, and their introduction dates.");
+		IConsoleHelp("Accepts an optional parameter for vehicle type filter: T=trains, R=road vehicles, S=ships, A=aircraft");
+		return true;
+	}
+
+	VehicleType type_filter = VEH_INVALID;
+	if (argc == 2) {
+		switch (argv[1][0]) {
+			case 'a': case 'A':
+				type_filter = VEH_AIRCRAFT;
+				break;
+			case 'r': case 'R':
+				type_filter = VEH_ROAD;
+				break;
+			case 's': case 'S':
+				type_filter = VEH_SHIP;
+				break;
+			case 't': case 'T':
+				type_filter = VEH_TRAIN;
+				break;
+			default:
+				IConsoleError("Invalid vehicle type, must be one of T, R, S, A");
+				return false;
+		}
+	}
+
+	Engine *e;
+	FOR_ALL_ENGINES(e) {
+		if (!e->IsEnabled()) continue;
+		if (type_filter != VEH_INVALID && e->type != type_filter) continue;
+
+		char engine_name[128];
+		SetDParam(0, e->index);
+		GetString(engine_name, STR_ENGINE_NAME, lastof(engine_name));
+
+		char intro_date[32];
+		SetDParam(0, e->intro_date);
+		GetString(intro_date, STR_JUST_DATE_ISO, lastof(intro_date));
+
+		IConsolePrintF(CC_DEFAULT, "%s (%s)", engine_name, intro_date);
+	}
+
+	return true;
+}
+
 #ifdef _DEBUG
 /******************
  *  debug commands
@@ -2039,4 +2088,5 @@ void IConsoleStdLibRegister()
 
 	/* NewGRF development stuff */
 	IConsoleCmdRegister("reload_newgrfs",  ConNewGRFReload, ConHookNewGRFDeveloperTool);
+	IConsoleCmdRegister("dump_engines",    ConDumpEngines,  ConHookNewGRFDeveloperTool);
 }
