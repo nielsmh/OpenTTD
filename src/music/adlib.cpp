@@ -12,7 +12,7 @@
 #include "../mixer.h"
 #include "../base_media_base.h"
 #include "../core/endian_func.hpp"
-#include "../thread/thread.h"
+#include <mutex>
 #include <stdio.h>
 #include <vector>
 
@@ -128,7 +128,7 @@ struct AdlibPlayer {
 	byte volume;                ///< current volume level (0-127)
 	byte *songdata;             ///< owned copy of raw song data
 	size_t songdatalen;         ///< length of songdata buffer
-	ThreadMutex *mutex;         ///< mutex for access to songdata
+	std::mutex mutex;           ///< mutex for access to songdata
 
 	/* Keeping track of pcm output */
 	uint32 lastsamplewritten;   ///< last sample number written
@@ -142,12 +142,10 @@ struct AdlibPlayer {
 		this->status = Status::STOPPED;
 		this->songdata = nullptr;
 		this->songdatalen = 0;
-		this->mutex = ThreadMutex::New();
 	}
 
 	virtual ~AdlibPlayer()
 	{
-		delete this->mutex;
 	}
 
 	bool IsPlaying()
@@ -493,7 +491,7 @@ struct AdlibPlayer {
 	{
 		if (!this->IsPlaying()) return;
 
-		ThreadMutexLocker mlock(this->mutex);
+		std::lock_guard mlock(this->mutex);
 		int16 *playbuf = CallocT<int16>(samples*2);
 
 		if (this->status == Status::BEGIN_PLAY) this->RestartSong();
@@ -547,7 +545,7 @@ struct AdlibPlayer {
 
 		this->UnloadSong();
 
-		ThreadMutexLocker mlock(this->mutex); // must be after UnloadSong, as that also takes the mutex
+		std::lock_guard mlock(this->mutex); // must be after UnloadSong, as that also takes the mutex
 
 		this->sampletime = 0;
 		this->songdata = data;
@@ -610,7 +608,7 @@ struct AdlibPlayer {
 
 	void UnloadSong()
 	{
-		ThreadMutexLocker mlock(this->mutex);
+		std::lock_guard mlock(this->mutex);
 
 		free(this->songdata);
 		this->songdata = nullptr;
