@@ -17,8 +17,8 @@
     29 02 06 00 00 00 ; define sub-layout classes
        00 01 FF  ; buildings
        02 03 FF  ; transformer blocks
-    2A 04 10 00 00 00 ; define master layouts
+    2A 04 12 00 00 00 ; define master layouts
        00 00 FF
        00 01 00 FF
        00 01 01 00 00 01 FF
-       00 FF
+       00 01 01 FF
