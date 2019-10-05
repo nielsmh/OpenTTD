@@ -3584,8 +3584,7 @@ static ChangeInfoResult IndustriesChangeInfo(uint indid, int numinfo, int prop, 
 						--expected_size;
 
 						if (ref == 0xFF) {
-							/* End of definition, store and next */
-							new_definitions.push_back(entrydef);
+							/* End of definition */
 							break;
 						} else {
 							/* Verify entry is valid */
