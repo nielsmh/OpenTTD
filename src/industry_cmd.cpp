@@ -2960,7 +2960,7 @@ TileIndexDiffC IndustryTileLayout::Extents() const
 	}
 	assert(xmin <= xmax);
 	assert(ymin <= ymax);
-	return TileIndexDiffC{ xmax - xmin, ymax - ymin };
+	return TileIndexDiffC{ xmax - xmin + 1, ymax - ymin + 1 };
 }
 
 /**
