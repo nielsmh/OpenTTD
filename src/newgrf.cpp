@@ -3324,6 +3324,7 @@ static ChangeInfoResult IgnoreIndustryProperty(int prop, ByteReader *buf)
 
 		case 0x0A: {
 			byte num_table = buf->ReadByte();
+			buf->ReadDWord(); // data length, not used
 			for (byte j = 0; j < num_table; j++) {
 				for (uint k = 0;; k++) {
 					byte x = buf->ReadByte();
@@ -3341,6 +3342,13 @@ static ChangeInfoResult IgnoreIndustryProperty(int prop, ByteReader *buf)
 				}
 			}
 			break;
+		}
+
+		case 0x29:
+		case 0x2A: {
+			byte num_entries = buf->ReadByte();
+			uint32 defsize = buf->ReadDWord();
+			buf->Skip(defsize);
 		}
 
 		case 0x16:
@@ -3544,6 +3552,67 @@ static ChangeInfoResult IndustriesChangeInfo(uint indid, int numinfo, int prop, 
 				/* Install final layout construction in the industry spec */
 				indsp->layouts.Clear();
 				indsp->layouts.structures = new_layouts;
+				break;
+			}
+
+			case 0x29:   // Set industry sub-layout classes
+			case 0x2A: { // Set industry master layouts
+				byte num_entries = buf->ReadByte();
+				uint32 expected_size = buf->ReadDWord();
+				std::vector<size_t> entrydef{};
+				std::vector<std::vector<size_t>> new_definitions{};
+
+				size_t refveclen; // length of vector this property references into
+				if (prop == 0x29) refveclen = indsp->layouts.structures.size();
+				if (prop == 0x2A) refveclen = indsp->layouts.structureclasses.size();
+
+				for (byte j = 0; j < num_entries; ++j) {
+					entrydef.clear();
+
+					if (expected_size == 0) {
+						grfmsg(3, "IndustriesChangeInfo: Incorrect size for industry layout definition (property %02X) for industry %u, too little data for all definitions.", prop, indid);
+						break;
+					}
+
+					for (;;) {
+						if (expected_size == 0) {
+							grfmsg(3, "IndustriesChangeInfo: Incorrect size for industry layout definition (property %02X) for industry %u, definition cut short.", prop, indid);
+							break;
+						}
+
+						byte ref = buf->ReadByte();
+						--expected_size;
+
+						if (ref == 0xFF) {
+							/* End of definition, store and next */
+							new_definitions.push_back(entrydef);
+							break;
+						} else {
+							/* Verify entry is valid */
+							if (ref < refveclen) {
+								entrydef.push_back(ref);
+							} else {
+								grfmsg(3, "IndustriesChangeInfo: Invalid definition reference %u in industry layout definition (property %02X) for industry %u, ignoring.", ref, prop, indid);
+							}
+						}
+					}
+
+					/* Verify any definitions were made */
+					if (entrydef.empty()) {
+						grfmsg(3, "IndustriesChangeInfo: Empty definition in industry layout definition (property %02X, definition %d) for industry %u, ignoring.", prop, j, indid);
+					} else {
+						new_definitions.push_back(entrydef);
+					}
+				}
+
+				if (expected_size > 0) {
+					grfmsg(3, "IndustriesChangeInfo: Excessive data in industry layout definition (property %02X) for industry %u, skipping %u trailing bytes.", prop, indid, expected_size);
+					buf->Skip(expected_size);
+				}
+
+				/* Install the final definitions in the industry spec */
+				if (prop == 0x29) indsp->layouts.structureclasses = new_definitions;
+				if (prop == 0x2A) indsp->layouts.layouts = new_definitions;
 				break;
 			}
 
