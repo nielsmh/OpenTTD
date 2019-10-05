@@ -93,20 +93,45 @@ enum IndustryTileSpecialFlags {
 };
 DECLARE_ENUM_AS_BIT_SET(IndustryTileSpecialFlags)
 
-/** Definition of one tile in an industry tile layout */
+/** One tile in an industry tile layout */
 struct IndustryTileLayoutTile {
 	TileIndexDiffC ti;
 	IndustryGfx gfx;
 };
 
-/** A complete tile layout for an industry is a list of tiles */
-using IndustryTileLayout = std::vector<IndustryTileLayoutTile>;
+/** A structure tile layout for an industry is a list of tiles */
+class IndustryTileLayout : public std::vector<IndustryTileLayoutTile> {
+public:
+	using std::vector<IndustryTileLayoutTile>::vector;
+	bool Validate() const;
+	TileIndexDiffC Extents() const;
+
+	bool CheckSubLayoutOverlap(const IndustryTileLayout &sublayout, int16 dx, int16 dy) const;
+	void InsertSubLayout(const IndustryTileLayout &sublayout, int16 dx, int16 dy);
+};
+
+/** Data required to generate an industry layout */
+struct IndustryLayout {
+	using StructureClass = std::vector<size_t>;
+	using MasterLayout = std::vector<size_t>;
+
+	std::vector<IndustryTileLayout> structures;   ///< List of possible structure layouts
+	std::vector<StructureClass> structureclasses; ///< Definitions of structure class groupings
+	std::vector<MasterLayout> layouts;            ///< Master layouts
+
+	bool Verify();
+	void Clear();
+	bool Empty() const { return layouts.empty() || structures.empty(); }
+
+	IndustryLayout() = default;
+	IndustryLayout(const std::vector<IndustryTileLayout> &structures);
+};
 
 /**
  * Defines the data structure for constructing industry.
  */
 struct IndustrySpec {
-	std::vector<IndustryTileLayout> layouts;    ///< List of possible tile layouts for the industry
+	IndustryLayout layouts;                     ///< List of possible tile layouts for the industry
 	uint8 cost_multiplier;                      ///< Base construction cost multiplier.
 	uint32 removal_cost_multiplier;             ///< Base removal cost multiplier.
 	uint32 prospecting_chance;                  ///< Chance prospecting succeeds

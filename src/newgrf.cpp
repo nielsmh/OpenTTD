@@ -3369,25 +3369,6 @@ static ChangeInfoResult IgnoreIndustryProperty(int prop, ByteReader *buf)
 }
 
 /**
- * Validate the industry layout; e.g. to prevent duplicate tiles.
- * @param layout The layout to check.
- * @return True if the layout is deemed valid.
- */
-static bool ValidateIndustryLayout(const IndustryTileLayout &layout)
-{
-	const size_t size = layout.size();
-	for (size_t i = 0; i < size - 1; i++) {
-		for (size_t j = i + 1; j < size; j++) {
-			if (layout[i].ti.x == layout[j].ti.x &&
-					layout[i].ti.y == layout[j].ti.y) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-/**
  * Define properties for industries
  * @param indid Local ID of the industry.
  * @param numinfo Number of subsequent industry IDs to change the property for.
@@ -3550,7 +3531,7 @@ static ChangeInfoResult IndustriesChangeInfo(uint indid, int numinfo, int prop, 
 						}
 					}
 
-					if (!ValidateIndustryLayout(layout)) {
+					if (!layout.Validate()) {
 						/* The industry layout was not valid, so skip this one. */
 						grfmsg(1, "IndustriesChangeInfo: Invalid industry layout for industry id %u. Ignoring", indid);
 						new_num_layouts--;
@@ -3561,7 +3542,8 @@ static ChangeInfoResult IndustriesChangeInfo(uint indid, int numinfo, int prop, 
 				}
 
 				/* Install final layout construction in the industry spec */
-				indsp->layouts = new_layouts;
+				indsp->layouts.Clear();
+				indsp->layouts.structures = new_layouts;
 				break;
 			}
 

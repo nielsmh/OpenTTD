@@ -2875,6 +2875,145 @@ void CheckIndustries()
 }
 
 /**
+ * Validate the industry layout; e.g. to prevent duplicate tiles.
+ * @return True if the layout is deemed valid.
+ */
+bool IndustryTileLayout::Validate() const
+{
+	const IndustryTileLayout &layout = *this;
+	const size_t size = layout.size();
+	uint num_realtiles = 0;
+	for (size_t i = 0; i < size - 1; i++) {
+		for (size_t j = i + 1; j < size; j++) {
+			if (layout[i].ti.x == layout[j].ti.x &&
+				layout[i].ti.y == layout[j].ti.y) {
+				return false;
+			}
+		}
+		if (layout[i].gfx != GFX_WATERTILE_SPECIALCHECK) num_realtiles++;
+	}
+	return num_realtiles > 0;
+}
+
+/**
+ * Calculate the size (width/height) of the layout.
+ * Watercheck tiles are ignored for this calculation.
+ * @note If the layout is invalid the result is undefined.
+ * @return Difference between largest and smallest X and Y coordinates
+ */
+TileIndexDiffC IndustryTileLayout::Extents() const
+{
+	int16 xmin = INT16_MAX, ymin = INT16_MAX;
+	int16 xmax = INT16_MIN, ymax = INT16_MIN;
+	for (const IndustryTileLayoutTile &it : *this) {
+		if (it.gfx == GFX_WATERTILE_SPECIALCHECK) continue;
+		xmin = std::min(xmin, it.ti.x);
+		ymin = std::min(ymin, it.ti.y);
+		xmax = std::max(xmax, it.ti.x);
+		ymax = std::max(ymax, it.ti.y);
+	}
+	return TileIndexDiffC{ xmax - xmin, ymax - ymin };
+}
+
+/**
+ * Attempt to position a sublayout offset over this layout, verify there is no overlap.
+ * @param sublayout  Layout to verify against
+ * @param dx         Sublayout offset in X axis
+ * @param dy         Sublayout offset in Y axis
+ * @return True if the sublayout can be inserted with the offset
+ */
+bool IndustryTileLayout::CheckSubLayoutOverlap(const IndustryTileLayout &sublayout, int16 dx, int16 dy) const
+{
+	for (const IndustryTileLayoutTile &mytile : *this) {
+		for (const IndustryTileLayoutTile &newtile : sublayout) {
+			if (mytile.ti.x != newtile.ti.x + dx) continue;
+			if (mytile.ti.y != newtile.ti.y + dy) continue;
+			/* Tiles have same X and Y and overlap, but watercheck tiles are allowed to */
+			if (mytile.gfx == GFX_WATERTILE_SPECIALCHECK && newtile.gfx == GFX_WATERTILE_SPECIALCHECK) continue;
+			/* Overlapping tiles not both watercheck, fails */
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Append a sublayout to this layout, without overlap checking.
+ * Watercheck tiles are skipped.
+ * @note The sublayout should be checked for overlap with CheckSubLayoutOverlap first.
+ * @param sublayout  Layout to verify against
+ * @param dx         Sublayout offset in X axis
+ * @param dy         Sublayout offset in Y axis
+ */
+void IndustryTileLayout::InsertSubLayout(const IndustryTileLayout &sublayout, int16 dx, int16 dy)
+{
+	for (const IndustryTileLayoutTile &newtile : sublayout) {
+		if (newtile.gfx != GFX_WATERTILE_SPECIALCHECK) {
+			this->push_back(IndustryTileLayoutTile{ {newtile.ti.x + dx, newtile.ti.y + dy}, newtile.gfx });
+		}
+	}
+}
+
+/**
+ * Validate the layout specification and complete it if only structure layouts are provided.
+ */
+bool IndustryLayout::Verify()
+{
+	/* Validate structures */
+	if (this->structures.empty()) return false;
+	for (const IndustryTileLayout &s : this->structures) {
+		if (!s.Validate()) return false;
+	}
+
+	/* If there are only basic structures, generate classic fixed layouts using these */
+	if (this->structureclasses.empty() && this->layouts.empty()) {
+		for (size_t i = 0; i < this->structures.size(); ++i) {
+			this->structureclasses.push_back(i);
+			this->layouts.push_back(i);
+		}
+	}
+
+	/* Verify structure classes */
+	if (this->structureclasses.empty()) return false;
+	for (const StructureClass &cl : this->structureclasses) {
+		if (cl.empty()) return false;
+		for (size_t itid : cl) {
+			if (itid >= this->structures.size()) return false;
+		}
+	}
+
+	/* Verify master layouts */
+	if (this->layouts.empty()) return false;
+	for (const MasterLayout &ml : this->layouts) {
+		if (ml.empty()) return false;
+		for (size_t scid : ml) {
+			if (scid >= this->structureclasses.size()) return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Remove all layouts from the specification, leaving it invalid.
+ */
+void IndustryLayout::Clear()
+{
+	this->structures.clear();
+	this->structureclasses.clear();
+	this->layouts.clear();
+}
+
+/**
+ * Construct a layout specification from only a list of structures (classic fixed layouts).
+ */
+IndustryLayout::IndustryLayout(const std::vector<IndustryTileLayout> &structures) : structures(structures)
+{
+	this->Verify();
+}
+
+
+/**
  * Is an industry with the spec a raw industry?
  * @return true if it should be handled as a raw industry
  */
