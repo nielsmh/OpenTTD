@@ -3481,12 +3481,12 @@ static ChangeInfoResult IndustriesChangeInfo(uint indid, int numinfo, int prop, 
 								DisableGrf(STR_NEWGRF_ERROR_INVALID_ID);
 								return CIR_DISABLED;
 							}
-							if (laynbr >= _origin_industry_specs[type].layouts.size()) {
+							if (laynbr >= _origin_industry_specs[type].layouts.structures.size()) {
 								grfmsg(1, "IndustriesChangeInfo: Invalid original industry layout index for layout import, industry %u", indid);
 								DisableGrf(STR_NEWGRF_ERROR_INVALID_ID);
 								return CIR_DISABLED;
 							}
-							layout = _origin_industry_specs[type].layouts[laynbr];
+							layout = _origin_industry_specs[type].layouts.structures[laynbr];
 							break;
 						}
 
@@ -9117,6 +9117,9 @@ static void FinaliseIndustriesArray()
 						strid = GetGRFStringID(indsp->grf_prop.grffile->grfid, indsp->station_name);
 						if (strid != STR_UNDEFINED) indsp->station_name = strid;
 					}
+
+					/* TODO: better handling of invalid layout configurations */
+					if (!indsp->layouts.Verify()) indsp->layouts.Clear();
 
 					_industry_mngr.SetEntitySpec(indsp);
 					_loaded_newgrf_features.has_newindustries = true;

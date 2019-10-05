@@ -1912,8 +1912,8 @@ static void DoCreateNewIndustry(Industry *i, TileIndex tile, IndustryType type, 
  */
 static CommandCost CreateNewIndustryHelper(TileIndex tile, IndustryType type, DoCommandFlag flags, const IndustrySpec *indspec, size_t layout_index, uint32 random_var8f, uint16 random_initial_bits, Owner founder, IndustryAvailabilityCallType creation_type, Industry **ip)
 {
-	assert(layout_index < indspec->layouts.size());
-	const IndustryTileLayout &layout = indspec->layouts[layout_index];
+	assert(layout_index < indspec->layouts.layouts.size());
+	const IndustryTileLayout &layout = indspec->layouts.structures[indspec->layouts.structureclasses[indspec->layouts.layouts[layout_index][0]][0]];
 	bool custom_shape_check = false;
 
 	*ip = nullptr;
@@ -1977,7 +1977,7 @@ CommandCost CmdBuildIndustry(TileIndex tile, DoCommandFlag flags, uint32 p1, uin
 	const IndustrySpec *indspec = GetIndustrySpec(it);
 
 	/* Check if the to-be built/founded industry is available for this climate. */
-	if (!indspec->enabled || indspec->layouts.empty()) return CMD_ERROR;
+	if (!indspec->enabled || indspec->layouts.Empty()) return CMD_ERROR;
 
 	/* If the setting for raw-material industries is not on, you cannot build raw-material industries.
 	 * Raw material industries are industries that do not accept cargo (at least for now) */
@@ -1993,7 +1993,7 @@ CommandCost CmdBuildIndustry(TileIndex tile, DoCommandFlag flags, uint32 p1, uin
 	randomizer.SetSeed(p2);
 	uint16 random_initial_bits = GB(p2, 0, 16);
 	uint32 random_var8f = randomizer.Next();
-	size_t num_layouts = indspec->layouts.size();
+	size_t num_layouts = indspec->layouts.layouts.size();
 	CommandCost ret = CommandCost(STR_ERROR_SITE_UNSUITABLE);
 	const bool deity_prospect = _current_company == OWNER_DEITY && !HasBit(p1, 16);
 
@@ -2061,7 +2061,7 @@ static Industry *CreateNewIndustry(TileIndex tile, IndustryType type, IndustryAv
 	uint32 seed = Random();
 	uint32 seed2 = Random();
 	Industry *i = nullptr;
-	size_t layout_index = RandomRange((uint32)indspec->layouts.size());
+	size_t layout_index = RandomRange((uint32)indspec->layouts.layouts.size());
 	CommandCost ret = CreateNewIndustryHelper(tile, type, DC_EXEC, indspec, layout_index, seed, GB(seed2, 0, 16), OWNER_NONE, creation_type, &i);
 	assert(i != nullptr || ret.Failed());
 	return i;
@@ -2077,7 +2077,7 @@ static uint32 GetScaledIndustryGenerationProbability(IndustryType it, bool *forc
 {
 	const IndustrySpec *ind_spc = GetIndustrySpec(it);
 	uint32 chance = ind_spc->appear_creation[_settings_game.game_creation.landscape] * 16; // * 16 to increase precision
-	if (!ind_spc->enabled || ind_spc->layouts.empty() ||
+	if (!ind_spc->enabled || ind_spc->layouts.Empty() ||
 			(_game_mode != GM_EDITOR && _settings_game.difficulty.industry_density == ID_FUND_ONLY) ||
 			(chance = GetIndustryProbabilityCallback(it, IACT_MAPGENERATION, chance)) == 0) {
 		*force_at_least_one = false;
@@ -2107,7 +2107,7 @@ static uint16 GetIndustryGamePlayProbability(IndustryType it, byte *min_number)
 
 	const IndustrySpec *ind_spc = GetIndustrySpec(it);
 	byte chance = ind_spc->appear_ingame[_settings_game.game_creation.landscape];
-	if (!ind_spc->enabled || ind_spc->layouts.empty() ||
+	if (!ind_spc->enabled || ind_spc->layouts.Empty() ||
 			((ind_spc->behaviour & INDUSTRYBEH_BEFORE_1950) && _cur_year > 1950) ||
 			((ind_spc->behaviour & INDUSTRYBEH_AFTER_1960) && _cur_year < 1960) ||
 			(chance = GetIndustryProbabilityCallback(it, IACT_RANDOMCREATION, chance)) == 0) {
@@ -2968,8 +2968,8 @@ bool IndustryLayout::Verify()
 	/* If there are only basic structures, generate classic fixed layouts using these */
 	if (this->structureclasses.empty() && this->layouts.empty()) {
 		for (size_t i = 0; i < this->structures.size(); ++i) {
-			this->structureclasses.push_back(i);
-			this->layouts.push_back(i);
+			this->structureclasses.push_back(StructureClass{ i });
+			this->layouts.push_back(MasterLayout{ i });
 		}
 	}
 

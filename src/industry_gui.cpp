@@ -647,7 +647,7 @@ public:
 		/* We do not need to protect ourselves against "Random Many Industries" in this mode */
 		const IndustrySpec *indsp = GetIndustrySpec(this->selected_type);
 		uint32 seed = InteractiveRandom();
-		uint32 layout_index = InteractiveRandomRange((uint32)indsp->layouts.size());
+		uint32 layout_index = InteractiveRandomRange((uint32)indsp->layouts.layouts.size());
 
 		if (_game_mode == GM_EDITOR) {
 			/* Show error if no town exists at all */
