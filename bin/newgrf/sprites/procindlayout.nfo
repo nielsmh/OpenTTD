@@ -5,7 +5,7 @@
 0   * 4  00 00 00 00
 1   * 101 08 08 "NMH" 04 "Procedural Industries" 00 "Some industries are built with procedural layouts instead of only fixed." 00
 
-2   * 114 00 0A 05 01  ; action 0 set up industries (feat 0A) with 5 properties for 1 id
+2   * 118 00 0A 05 01  ; action 0 set up industries (feat 0A) with 5 properties for 1 id
     00                ; first industry override
     08 01             ; substitute power station
     09 01             ; override power station
@@ -17,8 +17,28 @@
     29 02 06 00 00 00 ; define sub-layout classes
        00 01 FF  ; buildings
        02 03 FF  ; transformer blocks
-    2A 04 12 00 00 00 ; define master layouts
-       00 00 FF
+    2A 04 14 00 00 00 ; define master layouts
+       00 00 00 01 FF
        00 01 00 FF
        00 01 01 00 00 01 FF
        00 01 01 FF
+
+3   * 120 00 0A 05 01
+    01
+    08 0B  ; override oil wells
+    09 0B
+    0A 07 41 00 00 00  ; define sublayouts
+       00 00 1D  01 00 1D  02 00 1D  00 80
+       00 00 1D  00 01 1D  00 02 1D  00 80
+       00 00 1D  01 00 1D  00 80
+       00 00 1D  00 01 1D  00 80
+       00 00 1D  01 01 1D  00 80
+       01 00 1D  00 01 1D  00 80
+       00 01 1D  01 00 1D  01 01 1D  00 80
+    29 01 0C 00 00 00 ; define sublayout classes
+       00 01 02 03 04 05 06 00 00 01 01 FF
+    2A 04 10 00 00 00 ; define master layouts
+       00 00 FF
+       00 00 00 FF
+       00 00 00 FF
+       00 00 00 00 FF
