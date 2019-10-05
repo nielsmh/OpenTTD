@@ -1900,7 +1900,7 @@ static void DoCreateNewIndustry(Industry *i, TileIndex tile, IndustryType type, 
  * @param type of industry to build
  * @param flags of operations to conduct
  * @param indspec pointer to industry specifications
- * @param layout_index the index of the itsepc to build/fund
+ * @param master_layout the index of the master layout to build/fund
  * @param random_var8f random seed (possibly) used by industries
  * @param random_initial_bits The random bits the industry is going to have after construction.
  * @param founder Founder of the industry
@@ -1910,31 +1910,15 @@ static void DoCreateNewIndustry(Industry *i, TileIndex tile, IndustryType type, 
  *
  * @post \c *ip contains the newly created industry if all checks are successful and the \a flags request actual creation, else it contains \c nullptr afterwards.
  */
-static CommandCost CreateNewIndustryHelper(TileIndex tile, IndustryType type, DoCommandFlag flags, const IndustrySpec *indspec, size_t layout_index, uint32 random_var8f, uint16 random_initial_bits, Owner founder, IndustryAvailabilityCallType creation_type, Industry **ip)
+static CommandCost CreateNewIndustryHelper(TileIndex tile, IndustryType type, DoCommandFlag flags, const IndustrySpec *indspec, size_t master_layout, uint32 random_var8f, uint16 random_initial_bits, Owner founder, IndustryAvailabilityCallType creation_type, Industry **ip)
 {
-	assert(layout_index < indspec->layouts.layouts.size());
-	const IndustryTileLayout &layout = indspec->layouts.structures[indspec->layouts.structureclasses[indspec->layouts.layouts[layout_index][0]][0]];
+	assert(master_layout < indspec->layouts.layouts.size());
 	bool custom_shape_check = false;
+	CommandCost ret{};
 
 	*ip = nullptr;
 
-	std::vector<ClearedObjectArea> object_areas(_cleared_object_areas);
-	CommandCost ret = CheckIfIndustryTilesAreFree(tile, layout, layout_index, type, random_initial_bits, founder, creation_type, &custom_shape_check);
-	_cleared_object_areas = object_areas;
-	if (ret.Failed()) return ret;
-
-	if (HasBit(GetIndustrySpec(type)->callback_mask, CBM_IND_LOCATION)) {
-		ret = CheckIfCallBackAllowsCreation(tile, type, layout_index, random_var8f, random_initial_bits, founder, creation_type);
-	} else {
-		ret = _check_new_industry_procs[indspec->check_proc](tile);
-	}
-	if (ret.Failed()) return ret;
-
-	if (!custom_shape_check && _settings_game.game_creation.land_generator == LG_TERRAGENESIS && _generating_world &&
-			!_ignore_restrictions && !CheckIfCanLevelIndustryPlatform(tile, DC_NO_WATER, layout, type)) {
-		return_cmd_error(STR_ERROR_SITE_UNSUITABLE);
-	}
-
+	/* Perform basic validity checks */
 	ret = CheckIfFarEnoughFromConflictingIndustry(tile, type);
 	if (ret.Failed()) return ret;
 
@@ -1948,10 +1932,72 @@ static CommandCost CreateNewIndustryHelper(TileIndex tile, IndustryType type, Do
 
 	if (!Industry::CanAllocateItem()) return_cmd_error(STR_ERROR_TOO_MANY_INDUSTRIES);
 
+	/* Special position check */
+	if (HasBit(GetIndustrySpec(type)->callback_mask, CBM_IND_LOCATION)) {
+		ret = CheckIfCallBackAllowsCreation(tile, type, master_layout, random_var8f, random_initial_bits, founder, creation_type);
+	} else {
+		ret = _check_new_industry_procs[indspec->check_proc](tile);
+	}
+	if (ret.Failed()) return ret;
+
+	/* Attempt to build a layout for the industry */
+	IndustryTileLayout merged_layout{};
+	std::vector<ClearedObjectArea> object_areas(_cleared_object_areas);
+	bool main_building = true;
+
+	for (const size_t &sc_idx : indspec->layouts.layouts[master_layout]) {
+		bool sublayout_placed = false;
+
+		for (int sublayout_tries = 0; sublayout_tries < 3; ++sublayout_tries) {
+			/* Select a sub-layout from the sub-layout class */
+			size_t sublayout_index = indspec->layouts.structureclasses[sc_idx][RandomRange((uint32)indspec->layouts.structureclasses[sc_idx].size())];
+			const IndustryTileLayout &layout = indspec->layouts.structures[sublayout_index];
+
+			TileIndexDiffC tile_offset{};
+			bool offset_valid = false;
+			if (!main_building) {
+				/* Attempt to position the sublayout in the merged layout, offset from the main building */
+				for (int position_tries = 0; position_tries < 10; ++position_tries) {
+					auto merged_extents = merged_layout.Extents();
+					auto extra_extents = layout.Extents();
+					merged_extents.x += extra_extents.x;
+					merged_extents.y += extra_extents.y;
+					/* Note: layout.Extents() always returns >=0 for both x and y, cast to uint is safe */
+					tile_offset.x = (int16)RandomRange((uint32)merged_extents.x * 2 + 1) - merged_extents.x;
+					tile_offset.y = (int16)RandomRange((uint32)merged_extents.y * 2 + 1) - merged_extents.y;
+
+					if (merged_layout.CheckSubLayoutOverlap(layout, tile_offset.x, tile_offset.y)) {
+						offset_valid = true;
+						break;
+					}
+				}
+				if (!offset_valid) continue;
+			}
+
+			ret = CheckIfIndustryTilesAreFree(tile + ToTileIndexDiff(tile_offset), layout, sublayout_index, type, random_initial_bits, founder, creation_type, &custom_shape_check);
+			_cleared_object_areas = object_areas;
+			if (ret.Failed()) continue;
+
+			if (!custom_shape_check && _settings_game.game_creation.land_generator == LG_TERRAGENESIS && _generating_world &&
+				!_ignore_restrictions && !CheckIfCanLevelIndustryPlatform(tile, DC_NO_WATER, layout, type)) {
+				ret = CommandCost(STR_ERROR_SITE_UNSUITABLE);
+				continue;
+			}
+
+			merged_layout.InsertSubLayout(layout, tile_offset.x, tile_offset.y);
+			sublayout_placed = true;
+			break;
+		}
+
+		if (!sublayout_placed) return ret;
+
+		main_building = false;
+	}
+
 	if (flags & DC_EXEC) {
 		*ip = new Industry(tile);
-		if (!custom_shape_check) CheckIfCanLevelIndustryPlatform(tile, DC_NO_WATER | DC_EXEC, layout, type);
-		DoCreateNewIndustry(*ip, tile, type, layout, layout_index, t, founder, random_initial_bits);
+		if (!custom_shape_check) CheckIfCanLevelIndustryPlatform(tile, DC_NO_WATER | DC_EXEC, merged_layout, type);
+		DoCreateNewIndustry(*ip, tile, type, merged_layout, master_layout, t, founder, random_initial_bits);
 	}
 
 	return CommandCost();
@@ -2912,6 +2958,8 @@ TileIndexDiffC IndustryTileLayout::Extents() const
 		xmax = std::max(xmax, it.ti.x);
 		ymax = std::max(ymax, it.ti.y);
 	}
+	assert(xmin <= xmax);
+	assert(ymin <= ymax);
 	return TileIndexDiffC{ xmax - xmin, ymax - ymin };
 }
 
