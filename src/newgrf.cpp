@@ -9119,7 +9119,9 @@ static void FinaliseIndustriesArray()
 					}
 
 					/* TODO: better handling of invalid layout configurations */
-					if (!indsp->layouts.Verify()) indsp->layouts.Clear();
+					if (!indsp->layouts.Verify()) {
+						indsp->layouts.Clear();
+					}
 
 					_industry_mngr.SetEntitySpec(indsp);
 					_loaded_newgrf_features.has_newindustries = true;

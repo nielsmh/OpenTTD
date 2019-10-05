@@ -2883,7 +2883,7 @@ bool IndustryTileLayout::Validate() const
 	const IndustryTileLayout &layout = *this;
 	const size_t size = layout.size();
 	uint num_realtiles = 0;
-	for (size_t i = 0; i < size - 1; i++) {
+	for (size_t i = 0; i < size; i++) {
 		for (size_t j = i + 1; j < size; j++) {
 			if (layout[i].ti.x == layout[j].ti.x &&
 				layout[i].ti.y == layout[j].ti.y) {
