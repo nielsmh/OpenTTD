@@ -42,6 +42,7 @@ public:
 		int sprite_height;  ///< Real height of the sprite
 		int left;           ///< The left offset in the 'dst' in pixels to start drawing
 		int top;            ///< The top offset in the 'dst' in pixels to start drawing
+		int brightness;     ///< Brightness adjustment, not supported by all blitters, sensible range -16 to +16
 
 		void *dst;          ///< Destination buffer
 		int pitch;          ///< The pitch of the destination buffer

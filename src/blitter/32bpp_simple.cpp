@@ -37,29 +37,34 @@ void Blitter_32bppSimple::Draw(Blitter::BlitterParams *bp, BlitterMode mode, Zoo
 		src_line += bp->sprite_width * ScaleByZoom(1, zoom);
 
 		for (int x = 0; x < bp->width; x++) {
+			Colour c(src->r, src->g, src->b, src->a);
+			if (bp->brightness != 0) {
+				c = AdjustBrightness(c, DEFAULT_BRIGHTNESS + bp->brightness);
+			}
+
 			switch (mode) {
 				case BM_COLOUR_REMAP:
 					/* In case the m-channel is zero, do not remap this pixel in any way */
 					if (src->m == 0) {
-						if (src->a != 0) *dst = ComposeColourRGBA(src->r, src->g, src->b, src->a, *dst);
+						if (c.a != 0) *dst = ComposeColourRGBA(c.r, c.g, c.b, c.a, *dst);
 					} else {
-						if (bp->remap[src->m] != 0) *dst = ComposeColourPA(this->AdjustBrightness(this->LookupColourInPalette(bp->remap[src->m]), src->v), src->a, *dst);
+						if (bp->remap[src->m] != 0) *dst = ComposeColourPA(this->AdjustBrightness(this->LookupColourInPalette(bp->remap[src->m]), src->v), c.a, *dst);
 					}
 					break;
 
 				case BM_CRASH_REMAP:
 					if (src->m == 0) {
-						if (src->a != 0) {
-							uint8 g = MakeDark(src->r, src->g, src->b);
-							*dst = ComposeColourRGBA(g, g, g, src->a, *dst);
+						if (c.a != 0) {
+							uint8 g = MakeDark(c.r, c.g, c.b);
+							*dst = ComposeColourRGBA(g, g, g, c.a, *dst);
 						}
 					} else {
-						if (bp->remap[src->m] != 0) *dst = ComposeColourPA(this->AdjustBrightness(this->LookupColourInPalette(bp->remap[src->m]), src->v), src->a, *dst);
+						if (bp->remap[src->m] != 0) *dst = ComposeColourPA(this->AdjustBrightness(this->LookupColourInPalette(bp->remap[src->m]), src->v), c.a, *dst);
 					}
 					break;
 
 				case BM_BLACK_REMAP:
-					if (src->a != 0) {
+					if (c.a != 0) {
 						*dst = Colour(0, 0, 0);
 					}
 					break;
@@ -70,11 +75,11 @@ void Blitter_32bppSimple::Draw(Blitter::BlitterParams *bp, BlitterMode mode, Zoo
 					 *  we produce a result the newgrf maker didn't expect ;) */
 
 					/* Make the current colour a bit more black, so it looks like this image is transparent */
-					if (src->a != 0) *dst = MakeTransparent(*dst, 192);
+					if (c.a != 0) *dst = MakeTransparent(*dst, 192);
 					break;
 
 				default:
-					if (src->a != 0) *dst = ComposeColourRGBA(src->r, src->g, src->b, src->a, *dst);
+					if (c.a != 0) *dst = ComposeColourRGBA(c.r, c.g, c.b, c.a, *dst);
 					break;
 			}
 			dst++;

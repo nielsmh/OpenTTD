@@ -492,6 +492,14 @@ static void DrawTile_Trees(TileInfo *ti)
 	/* combine trees into one sprite object */
 	StartSpriteCombine();
 
+	extern int32 _hack_brightness;
+	_hack_brightness = 0;
+	Slope slope = GetTileSlope(ti->tile);
+	if (slope & SLOPE_W) _hack_brightness += 16;
+	if (slope & SLOPE_E) _hack_brightness -= 16;
+	if (slope & SLOPE_S) _hack_brightness -= 6;
+	_hack_brightness += ti->z / 32;
+
 	TreeListEnt te[4];
 
 	/* put the trees to draw in a list */
@@ -529,6 +537,7 @@ static void DrawTile_Trees(TileInfo *ti)
 		te[mi] = te[trees - 1];
 	}
 
+	_hack_brightness = 0;
 	EndSpriteCombine();
 }
 
