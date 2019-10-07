@@ -495,10 +495,35 @@ static void DrawTile_Trees(TileInfo *ti)
 	extern int32 _hack_brightness;
 	_hack_brightness = 0;
 	Slope slope = GetTileSlope(ti->tile);
-	if (slope & SLOPE_W) _hack_brightness += 16;
-	if (slope & SLOPE_E) _hack_brightness -= 16;
-	if (slope & SLOPE_S) _hack_brightness -= 6;
-	_hack_brightness += ti->z / 32;
+	switch (slope) {
+		case SLOPE_NW:
+			_hack_brightness += 8;
+		case SLOPE_STEEP_N:
+		case SLOPE_STEEP_W:
+			_hack_brightness += 8;
+		case SLOPE_N:
+		case SLOPE_W:
+		case SLOPE_ENW:
+		case SLOPE_NWS:
+			_hack_brightness += 4;
+			break;
+		case SLOPE_SE:
+			_hack_brightness -= 10;
+		case SLOPE_STEEP_S:
+		case SLOPE_STEEP_E:
+			_hack_brightness -= 4;
+		case SLOPE_NE:
+			_hack_brightness -= 8;
+		case SLOPE_SW:
+			_hack_brightness -= 4;
+		case SLOPE_S:
+		case SLOPE_E:
+		case SLOPE_SEN:
+		case SLOPE_WSE:
+			_hack_brightness -= 6;
+			break;
+	}
+	//_hack_brightness += ti->z / 8;
 
 	TreeListEnt te[4];
 
