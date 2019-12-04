@@ -198,7 +198,8 @@ extern void EnginesDailyLoop();
 extern void DisasterDailyLoop();
 extern void IndustryDailyLoop();
 
-extern void CompaniesMonthlyLoop();
+extern void CompaniesCalendarMonthlyLoop();
+extern void CompaniesEconomyMonthlyLoop();
 extern void EnginesMonthlyLoop();
 extern void TownsMonthlyLoop();
 extern void IndustryMonthlyLoop();
@@ -226,11 +227,7 @@ static const Month _autosave_months[] = {
  */
 static void OnNewCalendarYear()
 {
-	CompaniesYearlyLoop();
-	VehiclesYearlyLoop();
-	TownsYearlyLoop();
 	InvalidateWindowClassesData(WC_BUILD_STATION);
-	if (_network_server) NetworkServerYearlyLoop();
 
 	if (_cur_year == _settings_client.gui.semaphore_build_before) ResetSignalVariant();
 
@@ -263,7 +260,11 @@ static void OnNewCalendarYear()
  */
 static void OnNewEconomyYear()
 {
+	CompaniesYearlyLoop();
+	VehiclesYearlyLoop();
+	TownsYearlyLoop();
 
+	if (_network_server) NetworkServerYearlyLoop();
 }
 
 /**
@@ -271,19 +272,9 @@ static void OnNewEconomyYear()
  */
 static void OnNewCalendarMonth()
 {
-	if (_settings_client.gui.autosave != 0 && (_cur_month % _autosave_months[_settings_client.gui.autosave]) == 0) {
-		_do_autosave = true;
-		SetWindowDirty(WC_STATUS_BAR, 0);
-	}
-
 	SetWindowClassesDirty(WC_CHEATS);
-	CompaniesMonthlyLoop();
+	CompaniesCalendarMonthlyLoop();
 	EnginesMonthlyLoop();
-	TownsMonthlyLoop();
-	IndustryMonthlyLoop();
-	SubsidyMonthlyLoop();
-	StationMonthlyLoop();
-	if (_network_server) NetworkServerMonthlyLoop();
 }
 
 /**
@@ -291,7 +282,18 @@ static void OnNewCalendarMonth()
  */
 static void OnNewEconomyMonth()
 {
+	if (_settings_client.gui.autosave != 0 && (_cur_economy_month % _autosave_months[_settings_client.gui.autosave]) == 0) {
+		_do_autosave = true;
+		SetWindowDirty(WC_STATUS_BAR, 0);
+	}
 
+	CompaniesEconomyMonthlyLoop();
+	TownsMonthlyLoop();
+	IndustryMonthlyLoop();
+	SubsidyMonthlyLoop();
+	StationMonthlyLoop();
+
+	if (_network_server) NetworkServerMonthlyLoop();
 }
 
 /**
@@ -299,11 +301,6 @@ static void OnNewEconomyMonth()
  */
 static void OnNewCalendarDay()
 {
-	if (_network_server) NetworkServerDailyLoop();
-
-	DisasterDailyLoop();
-	IndustryDailyLoop();
-
 	SetWindowWidgetDirty(WC_STATUS_BAR, 0, 0);
 	EnginesDailyLoop();
 
@@ -316,7 +313,10 @@ static void OnNewCalendarDay()
  */
 static void OnNewEconomyDay()
 {
+	if (_network_server) NetworkServerDailyLoop();
 
+	DisasterDailyLoop();
+	IndustryDailyLoop();
 }
 
 static void IncreaseCalendarDate()

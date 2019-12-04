@@ -1911,26 +1911,26 @@ void NetworkServer_Tick(bool send_frame)
 	NetworkUDPAdvertise();
 }
 
-/** Yearly "callback". Called whenever the year changes. */
+/** Yearly "callback". Called whenever the economy year changes. */
 void NetworkServerYearlyLoop()
 {
 	NetworkCheckRestartMap();
 	NetworkAdminUpdate(ADMIN_FREQUENCY_ANUALLY);
 }
 
-/** Monthly "callback". Called whenever the month changes. */
+/** Monthly "callback". Called whenever the economy month changes. */
 void NetworkServerMonthlyLoop()
 {
 	NetworkAutoCleanCompanies();
 	NetworkAdminUpdate(ADMIN_FREQUENCY_MONTHLY);
-	if ((_cur_month % 3) == 0) NetworkAdminUpdate(ADMIN_FREQUENCY_QUARTERLY);
+	if ((_cur_economy_month % 3) == 0) NetworkAdminUpdate(ADMIN_FREQUENCY_QUARTERLY);
 }
 
-/** Daily "callback". Called whenever the date changes. */
+/** Daily "callback". Called whenever the economy date changes. */
 void NetworkServerDailyLoop()
 {
 	NetworkAdminUpdate(ADMIN_FREQUENCY_DAILY);
-	if ((_date % 7) == 3) NetworkAdminUpdate(ADMIN_FREQUENCY_WEEKLY);
+	if ((_economy_date % 7) == 3) NetworkAdminUpdate(ADMIN_FREQUENCY_WEEKLY);
 }
 
 /**
