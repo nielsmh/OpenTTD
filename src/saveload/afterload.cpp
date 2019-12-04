@@ -719,6 +719,18 @@ bool AfterLoadGame()
 	 * must be done before loading sprites as some newgrfs check it */
 	SetDate(_date, _date_fract);
 
+	/* Convert calendar date to economy date */
+	if (IsSavegameVersionBefore(SLV_NOCALENDAR)) {
+		YearMonthDay ymd;
+		ConvertDateToYMD(_date, &ymd);
+		_economy_years = ymd.year;
+		_economy_date = max(ymd.day - 1, 29) + ymd.month * 30;
+		_economy_date_fract = _date_fract;
+	}
+
+	/* Calculate economy month from day of year */
+	_cur_economy_month = _economy_date % 30;
+
 	/*
 	 * Force the old behaviour for compatibility reasons with old savegames. As new
 	 * settings can only be loaded from new savegames loading old savegames with new

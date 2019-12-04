@@ -21,14 +21,51 @@
 
 #include "safeguards.h"
 
-Year      _cur_year;   ///< Current year, starting at 0
-Month     _cur_month;  ///< Current month (0..11)
-Date      _date;       ///< Current date in days (day counter)
-DateFract _date_fract; ///< Fractional part of the day.
+/*
+ * Date/time handling is separated into two:
+ *  - Calendar time
+ *    Changes in world technology and visuals run on calendar time.
+ *    This is things such as new and obsolete vehicle models, available airports, stations, and industry types,
+ *    and visual styles that could be used by vehicles, buildings, roads, and such.
+ *    Snow line movement.
+ *    All the things that define "an era".
+ *  - Economy time
+ *    Everything related to production, consumption, upkeep, income, repuation, ratings, and so on.
+ *
+ * Calendar time is kept in a common Gregorian calendar, with 365 days in a year, leap years, variable
+ * length months, and so on.
+ *
+ * Economy time is kept in (approximate) real time. There are logical days with a duration of 1.998 seconds,
+ * logical months with a duration of 1 minute, and logical years with a duration of slightly more than 12 minutes.
+ * Internally a calendar with 12 months of 30 days is observed. There are no leap periods.
+ * In the user interface, all elements that run on economy time are presented in real time units:
+ *  - Seconds (multiples of 2), for things originally daily
+ *    o Timetables
+ *  - Minutes, for things originally monthly:
+ *    o Industry production per minute
+ *    o Passengers last minute
+ *    o Industry construction/close down time
+ *  - Pentas (one-fifth hour, i.e. 12 minutes) for things originally yearly:
+ *    o Running costs
+ *    o Budget period
+ *
+ * Internally most events will still be referenced as daily/monthly/yearly.
+ */
+
+Year      _cur_year;   ///< Current calendar year, starting at 0
+Month     _cur_month;  ///< Current calendar month (0..11)
+Date      _date;       ///< Current calendar date in days (day counter)
+DateFract _date_fract; ///< Fractional part of the calendar day.
+
+Year      _economy_years;      ///< Number of economy years elapsed since game start
+Month     _cur_economy_month;  ///< Current economy month (0..11)
+Date      _economy_date;       ///< Current economy day of year (0..359)
+DateFract _economy_date_fract; ///< Fractional part of the economy day
+
 uint16 _tick_counter;  ///< Ever incrementing (and sometimes wrapping) tick counter for setting off various events
 
 /**
- * Set the date.
+ * Set the calendar date.
  * @param date  New date
  * @param fract The number of ticks that have passed on this date.
  */
@@ -85,7 +122,7 @@ static const uint16 _accum_days_for_month[] = {
 };
 
 /**
- * Converts a Date to a Year, Month & Day.
+ * Converts a Date to a (Gregorian calendar) Year, Month & Day.
  * @param date the date to convert from
  * @param ymd  the year, month and day to write to
  */
@@ -139,7 +176,7 @@ void ConvertDateToYMD(Date date, YearMonthDay *ymd)
 }
 
 /**
- * Converts a tuple of Year, Month and Day to a Date.
+ * Converts a tuple of (Gregorian calendar) Year, Month and Day to a Date.
  * @param year  is a number between 0..MAX_YEAR
  * @param month is a number between 0..11
  * @param day   is a number between 1..31
@@ -178,16 +215,16 @@ extern void ShowEndGameChart();
 /** Available settings for autosave intervals. */
 static const Month _autosave_months[] = {
 	 0, ///< never
-	 1, ///< every month
-	 3, ///< every 3 months
-	 6, ///< every 6 months
-	12, ///< every 12 months
+	 1, ///< every 1 minute
+	 3, ///< every 3 minutes
+	 6, ///< every 6 minutes
+	12, ///< every 12 minutes
 };
 
 /**
- * Runs various procedures that have to be done yearly
+ * Runs various procedures that have to be done when calendar year turns
  */
-static void OnNewYear()
+static void OnNewCalendarYear()
 {
 	CompaniesYearlyLoop();
 	VehiclesYearlyLoop();
@@ -222,9 +259,17 @@ static void OnNewYear()
 }
 
 /**
- * Runs various procedures that have to be done monthly
+ * Runs various procedures that have to be done when economy year turns
  */
-static void OnNewMonth()
+static void OnNewEconomyYear()
+{
+
+}
+
+/**
+ * Runs various procedures that have to be done when calendar month turns
+ */
+static void OnNewCalendarMonth()
 {
 	if (_settings_client.gui.autosave != 0 && (_cur_month % _autosave_months[_settings_client.gui.autosave]) == 0) {
 		_do_autosave = true;
@@ -242,9 +287,17 @@ static void OnNewMonth()
 }
 
 /**
- * Runs various procedures that have to be done daily
+ * Runs various procedures that have to be done when economy month turns
  */
-static void OnNewDay()
+static void OnNewEconomyMonth()
+{
+
+}
+
+/**
+ * Runs various procedures that have to be done every calendar day
+ */
+static void OnNewCalendarDay()
 {
 	if (_network_server) NetworkServerDailyLoop();
 
@@ -259,16 +312,15 @@ static void OnNewDay()
 }
 
 /**
- * Increases the tick counter, increases date  and possibly calls
- * procedures that have to be called daily, monthly or yearly.
+ * Runs various procedures that have to be done every economy day
  */
-void IncreaseDate()
+static void OnNewEconomyDay()
 {
-	/* increase day, and check if a new day is there? */
-	_tick_counter++;
 
-	if (_game_mode == GM_MENU) return;
+}
 
+static void IncreaseCalendarDate()
+{
 	_date_fract++;
 	if (_date_fract < DAY_TICKS) return;
 	_date_fract = 0;
@@ -287,14 +339,55 @@ void IncreaseDate()
 
 	/* update internal variables before calling the daily/monthly/yearly loops */
 	_cur_month = ymd.month;
-	_cur_year  = ymd.year;
+	_cur_year = ymd.year;
 
 	/* yes, call various daily loops */
-	OnNewDay();
+	OnNewCalendarDay();
 
 	/* yes, call various monthly loops */
-	if (new_month) OnNewMonth();
+	if (new_month) OnNewCalendarMonth();
 
 	/* yes, call various yearly loops */
-	if (new_year) OnNewYear();
+	if (new_year) OnNewCalendarYear();
+}
+
+static void IncreaseEconomyDate()
+{
+	_economy_date_fract++;
+	if (_economy_date_fract < DAY_TICKS) return;
+	_economy_date_fract = 0;
+
+	_economy_date++;
+
+	bool new_month = _economy_date % 30 == 0;
+	bool new_year = _economy_date == 360;
+
+	if (new_year) {
+		_economy_date = 0;
+		_cur_economy_month = 0;
+		_economy_years++;
+	} else if (new_month) {
+		_cur_economy_month++;
+	}
+
+	OnNewEconomyDay();
+
+	if (new_month) OnNewEconomyMonth();
+
+	if (new_year) OnNewEconomyYear();
+}
+
+/**
+ * Increases the tick counter, increases date  and possibly calls
+ * procedures that have to be called daily, monthly or yearly.
+ */
+void IncreaseDate()
+{
+	/* increase day, and check if a new day is there? */
+	_tick_counter++;
+
+	if (_game_mode == GM_MENU) return;
+
+	IncreaseCalendarDate();
+	IncreaseEconomyDate();
 }

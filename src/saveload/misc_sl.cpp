@@ -73,6 +73,9 @@ static const SaveLoadGlobVarList _date_desc[] = {
 	SLEG_CONDVAR(_date,                   SLE_INT32,                  SLV_31, SL_MAX_VERSION),
 	    SLEG_VAR(_date_fract,             SLE_UINT16),
 	    SLEG_VAR(_tick_counter,           SLE_UINT16),
+	SLEG_CONDVAR(_economy_years,          SLE_INT32,                   SLV_NOCALENDAR, SL_MAX_VERSION),
+	SLEG_CONDVAR(_economy_date,           SLE_INT32,                   SLV_NOCALENDAR, SL_MAX_VERSION),
+	SLEG_CONDVAR(_economy_date_fract,     SLE_UINT16,                  SLV_NOCALENDAR, SL_MAX_VERSION),
 	SLE_CONDNULL(2, SL_MIN_VERSION, SLV_157), // _vehicle_id_ctr_day
 	SLEG_CONDVAR(_age_cargo_skip_counter, SLE_UINT8,                   SL_MIN_VERSION, SLV_162),
 	SLE_CONDNULL(1, SL_MIN_VERSION, SLV_46),
@@ -98,6 +101,9 @@ static const SaveLoadGlobVarList _date_check_desc[] = {
 	SLEG_CONDVAR(_load_check_data.current_date,  SLE_INT32,                  SLV_31, SL_MAX_VERSION),
 	    SLE_NULL(2),                       // _date_fract
 	    SLE_NULL(2),                       // _tick_counter
+	SLE_CONDNULL(4, SLV_NOCALENDAR, SL_MAX_VERSION), // _economy_years
+	SLE_CONDNULL(4, SLV_NOCALENDAR, SL_MAX_VERSION), // _economy_date
+	SLE_CONDNULL(2, SLV_NOCALENDAR, SL_MAX_VERSION), // _economy_date_fract
 	SLE_CONDNULL(2, SL_MIN_VERSION, SLV_157),               // _vehicle_id_ctr_day
 	SLE_CONDNULL(1, SL_MIN_VERSION, SLV_162),               // _age_cargo_skip_counter
 	SLE_CONDNULL(1, SL_MIN_VERSION, SLV_46),
