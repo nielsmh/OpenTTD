@@ -723,13 +723,13 @@ bool AfterLoadGame()
 	if (IsSavegameVersionBefore(SLV_NOCALENDAR)) {
 		YearMonthDay ymd;
 		ConvertDateToYMD(_date, &ymd);
-		_economy_years = ymd.year;
-		_economy_date = max(ymd.day - 1, 29) + ymd.month * 30;
+		_economy_date = max(ymd.day - 1, DAYS_IN_ECONOMY_MONTH - 1) + ymd.month * DAYS_IN_ECONOMY_MONTH + ymd.year * DAYS_IN_ECONOMY_YEAR;
 		_economy_date_fract = _date_fract;
 	}
 
-	/* Calculate economy month from day of year */
-	_cur_economy_month = _economy_date % 30;
+	/* Calculate economy year and month */
+	_cur_economy_month = _economy_date / DAYS_IN_ECONOMY_MONTH % MONTHS_IN_ECONOMY_YEAR;
+	_cur_economy_year = _economy_date / DAYS_IN_ECONOMY_YEAR;
 
 	/*
 	 * Force the old behaviour for compatibility reasons with old savegames. As new

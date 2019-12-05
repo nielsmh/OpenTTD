@@ -57,9 +57,9 @@ Month     _cur_month;  ///< Current calendar month (0..11)
 Date      _date;       ///< Current calendar date in days (day counter)
 DateFract _date_fract; ///< Fractional part of the calendar day.
 
-Year      _economy_years;      ///< Number of economy years elapsed since game start
+Year      _cur_economy_year;   ///< Number of economy years elapsed since game start
 Month     _cur_economy_month;  ///< Current economy month (0..11)
-Date      _economy_date;       ///< Current economy day of year (0..359)
+Date      _economy_date;       ///< Number of economy days elapsed since game start
 DateFract _economy_date_fract; ///< Fractional part of the economy day
 
 uint16 _tick_counter;  ///< Ever incrementing (and sometimes wrapping) tick counter for setting off various events
@@ -234,22 +234,6 @@ static void OnNewCalendarYear()
 	/* check if we reached end of the game */
 	if (_cur_year == ORIGINAL_END_YEAR) {
 		ShowEndGameChart();
-	/* check if we reached the maximum year, decrement dates by a year */
-	} else if (_cur_year == MAX_YEAR + 1) {
-		Vehicle *v;
-		int days_this_year;
-
-		_cur_year--;
-		days_this_year = IsLeapYear(_cur_year) ? DAYS_IN_LEAP_YEAR : DAYS_IN_YEAR;
-		_date -= days_this_year;
-		FOR_ALL_VEHICLES(v) v->date_of_last_service -= days_this_year;
-
-		LinkGraph *lg;
-		FOR_ALL_LINK_GRAPHS(lg) lg->ShiftDates(-days_this_year);
-
-		/* Because the _date wraps here, and text-messages expire by game-days, we have to clean out
-		 *  all of them if the date is set back, else those messages will hang for ever */
-		NetworkInitChatMessage();
 	}
 
 	if (_settings_client.gui.auto_euro) CheckSwitchToEuro();
@@ -265,6 +249,22 @@ static void OnNewEconomyYear()
 	TownsYearlyLoop();
 
 	if (_network_server) NetworkServerYearlyLoop();
+
+	/* Check if the maximum year has been reached, decrement everything by several years */
+	if (_cur_economy_year == MAX_YEAR + 1) {
+		/* Shift back 700 years to avoid doing this too often, and to have a number divisible by 7 (week length) */
+		const int shift_back_years = 700;
+		const int shift_back_days = DAYS_IN_ECONOMY_YEAR * shift_back_years;
+
+		_economy_date -= shift_back_days;
+		_cur_economy_year -= shift_back_years;
+
+		Vehicle *v;
+		FOR_ALL_VEHICLES(v) v->date_of_last_service -= shift_back_days;
+
+		LinkGraph *lg;
+		FOR_ALL_LINK_GRAPHS(lg) lg->ShiftDates(-shift_back_days);
+	}
 }
 
 /**
@@ -359,13 +359,12 @@ static void IncreaseEconomyDate()
 
 	_economy_date++;
 
-	bool new_month = _economy_date % 30 == 0;
-	bool new_year = _economy_date == 360;
+	bool new_month = _economy_date % DAYS_IN_ECONOMY_MONTH == 0;
+	bool new_year = _economy_date % DAYS_IN_ECONOMY_YEAR == 0;
 
 	if (new_year) {
-		_economy_date = 0;
 		_cur_economy_month = 0;
-		_economy_years++;
+		_cur_economy_year++;
 	} else if (new_month) {
 		_cur_economy_month++;
 	}
