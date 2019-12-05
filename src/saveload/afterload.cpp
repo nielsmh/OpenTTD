@@ -1456,7 +1456,6 @@ bool AfterLoadGame()
 		FOR_ALL_INDUSTRIES(i) i->last_prod_year   += ORIGINAL_BASE_YEAR;
 
 		FOR_ALL_VEHICLES(v) {
-			v->date_of_last_service += DAYS_TILL_ORIGINAL_BASE_YEAR;
 			v->build_year += ORIGINAL_BASE_YEAR;
 		}
 	}
