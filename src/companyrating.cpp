@@ -36,12 +36,11 @@ const ScoreInfo _score_info[] = {
 int64 _score_part[MAX_COMPANIES][SCORE_END];
 
 /**
- * if update is set to true, the economy is updated with this score
- *  (also the house is updated, should only be true in the on-tick event)
- * @param update the economy with calculated score
- * @param c company been evaluated
- * @return actual score of this company
- *
+ * Calculate the performance rating of a company.
+ * @param c       Company being evaluated.
+ * @param update  Whether to store the new rating and update company HQ.
+ *                Should only be set in the company monthly loop.
+ * @return Current score of this company.
  */
 int UpdateCompanyRatingAndValue(Company *c, bool update)
 {
