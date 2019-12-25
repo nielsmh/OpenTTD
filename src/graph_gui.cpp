@@ -1397,7 +1397,14 @@ struct PerformanceRatingDetailWindow : Window {
 		int64 needed = _score_info[score_type].needed;
 		int   score  = _score_info[score_type].score;
 
-		/* SCORE_TOTAL has his own rules ;) */
+		/* Negative requirement means requirement is inverted (player needs zero value for max score) */
+		bool inverse = needed < 0;
+		if (inverse) {
+			needed = -needed;
+			val = needed - val;
+		}
+
+		/* SCORE_TOTAL has its own rules ;) */
 		if (score_type == SCORE_TOTAL) {
 			for (ScoreID i = SCORE_BEGIN; i < SCORE_END; i++) score += _score_info[i].score;
 			needed = SCORE_MAX;
@@ -1429,8 +1436,8 @@ struct PerformanceRatingDetailWindow : Window {
 		SetDParam(0, Clamp<int64>(val, 0, needed) * 100 / needed);
 		DrawString(this->bar_left, this->bar_right, text_top, STR_PERFORMANCE_DETAIL_PERCENT, TC_FROMSTRING, SA_HOR_CENTER);
 
-		/* SCORE_LOAN is inversed */
-		if (score_type == SCORE_LOAN) val = needed - val;
+		/* Invert back to real value for display */
+		if (inverse) val = needed - val;
 
 		switch (_score_info[score_type].unit) {
 			case SCOREUNIT_MONEY_M:
@@ -1449,6 +1456,8 @@ struct PerformanceRatingDetailWindow : Window {
 		SetDParam(1, needed);
 		switch (_score_info[score_type].unit) {
 			case SCOREUNIT_MONEY:
+			case SCOREUNIT_MONEY_K:
+			case SCOREUNIT_MONEY_M:
 				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_CURRENCY);
 				break;
 			default:

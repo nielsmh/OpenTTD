@@ -66,7 +66,7 @@ enum ScoreItemUnit : uint8 {
 
 /** Data structure for storing how the score is computed for a single score id. */
 struct ScoreInfo {
-	int32 needed;       ///< How much you need to get the perfect score
+	int32 needed;       ///< How much you need to get the perfect score, or negative for inverse requirement
 	int32 score;        ///< How much score it will give
 	ScoreItemUnit unit; ///< Unit used to measure the needed value in
 	StringID name;      ///< Name of the score item in the UI
