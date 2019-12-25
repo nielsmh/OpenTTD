@@ -1406,7 +1406,7 @@ struct PerformanceRatingDetailWindow : Window {
 		uint bar_top  = r.top + WD_MATRIX_TOP;
 		uint text_top = bar_top + 2;
 
-		DrawString(this->score_info_left, this->score_info_right, text_top, STR_PERFORMANCE_DETAIL_VEHICLES + score_type);
+		DrawString(this->score_info_left, this->score_info_right, text_top, _score_info[score_type].name);
 
 		/* Draw the score */
 		SetDParam(0, score);
@@ -1432,16 +1432,23 @@ struct PerformanceRatingDetailWindow : Window {
 		/* SCORE_LOAN is inversed */
 		if (score_type == SCORE_LOAN) val = needed - val;
 
+		switch (_score_info[score_type].unit) {
+			case SCOREUNIT_MONEY_M:
+				val *= 1000;
+				needed *= 1000;
+				FALLTHROUGH;
+			case SCOREUNIT_MONEY_K:
+				val *= 1000;
+				needed *= 1000;
+				break;
+		}
+
 		/* Draw the amount we have against what is needed
 		 * For some of them it is in currency format */
 		SetDParam(0, val);
 		SetDParam(1, needed);
-		switch (score_type) {
-			case SCORE_MIN_PROFIT:
-			case SCORE_MIN_INCOME:
-			case SCORE_MAX_INCOME:
-			case SCORE_MONEY:
-			case SCORE_LOAN:
+		switch (_score_info[score_type].unit) {
+			case SCOREUNIT_MONEY:
 				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_CURRENCY);
 				break;
 			default:
@@ -1514,26 +1521,11 @@ CompanyID PerformanceRatingDetailWindow::company = INVALID_COMPANY;
  */
 static NWidgetBase *MakePerformanceDetailPanels(int *biggest_index)
 {
-	const StringID performance_tips[] = {
-		STR_PERFORMANCE_DETAIL_VEHICLES_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_STATIONS_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_MIN_PROFIT_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_MIN_INCOME_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_MAX_INCOME_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_DELIVERED_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_CARGO_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_MONEY_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_LOAN_TOOLTIP,
-		STR_PERFORMANCE_DETAIL_TOTAL_TOOLTIP,
-	};
-
-	assert_compile(lengthof(performance_tips) == SCORE_END - SCORE_BEGIN);
-
 	NWidgetVertical *vert = new NWidgetVertical(NC_EQUALSIZE);
 	for (int widnum = WID_PRD_SCORE_FIRST; widnum <= WID_PRD_SCORE_LAST; widnum++) {
 		NWidgetBackground *panel = new NWidgetBackground(WWT_PANEL, COLOUR_GREY, widnum);
 		panel->SetFill(1, 1);
-		panel->SetDataTip(0x0, performance_tips[widnum - WID_PRD_SCORE_FIRST]);
+		panel->SetDataTip(0x0, _score_info[widnum - WID_PRD_SCORE_FIRST].tooltip);
 		vert->Add(panel);
 	}
 	*biggest_index = WID_PRD_SCORE_LAST;

@@ -12,6 +12,7 @@
 
 #include "core/overflowsafe_type.hpp"
 #include "core/enum_type.hpp"
+#include "strings_type.h"
 
 typedef OverflowSafeInt64 Money;
 
@@ -52,10 +53,24 @@ enum ScoreID {
 };
 DECLARE_POSTFIX_INCREMENT(ScoreID)
 
+/** Units a score item is measured in */
+enum ScoreItemUnit : uint8 {
+	SCOREUNIT_COUNT   = 0,   ///< Simple count of something
+	SCOREUNIT_WEIGHT  = 1,   ///< Amount of cargo in weight units
+	SCOREUNIT_VOLUME  = 2,   ///< Amount of cargo in volumetric units
+	SCOREUNIT_MONEY   = 8,   ///< Amount of money in pounds
+	SCOREUNIT_MONEY_K = 9,   ///< Amount of money in thousands of pounds
+	SCOREUNIT_MONEY_M = 10,  ///< Amount of money in millions of pounds
+	SCOREUNIT_FLAG    = 15,  ///< Binary yes/no score
+};
+
 /** Data structure for storing how the score is computed for a single score id. */
 struct ScoreInfo {
-	int needed; ///< How much you need to get the perfect score
-	int score;  ///< How much score it will give
+	int32 needed;       ///< How much you need to get the perfect score
+	int32 score;        ///< How much score it will give
+	ScoreItemUnit unit; ///< Unit used to measure the needed value in
+	StringID name;      ///< Name of the score item in the UI
+	StringID tooltip;   ///< Tooltip for the score item in the UI
 };
 
 /**
