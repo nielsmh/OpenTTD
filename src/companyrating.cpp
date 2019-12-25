@@ -156,7 +156,12 @@ int UpdateCompanyRatingAndValue(Company *c, bool update)
 				needed = -needed;
 				value = needed - value;
 			}
-			s = Clamp<int64>(value, 0, needed) * _score_info[i].score / needed;
+			if (_score_info[i].unit == SCOREUNIT_FLAG) {
+				/* Flags give full score for anything better than zero */
+				s = (value > 0) ? _score_info[i].score : 0;
+			} else {
+				s = Clamp<int64>(value, 0, needed) * _score_info[i].score / needed;
+			}
 			score += s;
 			total_score += _score_info[i].score;
 		}
