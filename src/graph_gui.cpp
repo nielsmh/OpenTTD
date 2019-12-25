@@ -1433,8 +1433,10 @@ struct PerformanceRatingDetailWindow : Window {
 		if (x != this->bar_right) GfxFillRect(x, bar_top, this->bar_right, bar_top + this->bar_height, rtl ? colour_done : colour_notdone);
 
 		/* Draw it */
-		SetDParam(0, Clamp<int64>(val, 0, needed) * 100 / needed);
-		DrawString(this->bar_left, this->bar_right, text_top, STR_PERFORMANCE_DETAIL_PERCENT, TC_FROMSTRING, SA_HOR_CENTER);
+		if (_score_info[score_type].unit != SCOREUNIT_FLAG) {
+			SetDParam(0, Clamp<int64>(val, 0, needed) * 100 / needed);
+			DrawString(this->bar_left, this->bar_right, text_top, STR_PERFORMANCE_DETAIL_PERCENT, TC_FROMSTRING, SA_HOR_CENTER);
+		}
 
 		/* Invert back to real value for display */
 		if (inverse) val = needed - val;
@@ -1459,6 +1461,15 @@ struct PerformanceRatingDetailWindow : Window {
 			case SCOREUNIT_MONEY_K:
 			case SCOREUNIT_MONEY_M:
 				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_CURRENCY);
+				break;
+			case SCOREUNIT_WEIGHT:
+				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_WEIGHT);
+				break;
+			case SCOREUNIT_VOLUME:
+				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_VOLUME);
+				break;
+			case SCOREUNIT_FLAG:
+				DrawString(this->score_detail_left, this->score_detail_right, text_top, (val > 0) ? STR_PERFORMANCE_DETAIL_AMOUNT_FLAG_TRUE : STR_PERFORMANCE_DETAIL_AMOUNT_FLAG_FALSE);
 				break;
 			default:
 				DrawString(this->score_detail_left, this->score_detail_right, text_top, STR_PERFORMANCE_DETAIL_AMOUNT_INT);

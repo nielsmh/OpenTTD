@@ -616,6 +616,10 @@ STR_PERFORMANCE_DETAIL                                          :{WHITE}Detailed
 STR_PERFORMANCE_DETAIL_KEY                                      :{BLACK}Detail
 STR_PERFORMANCE_DETAIL_AMOUNT_CURRENCY                          :{BLACK}({CURRENCY_SHORT}/{CURRENCY_SHORT})
 STR_PERFORMANCE_DETAIL_AMOUNT_INT                               :{BLACK}({COMMA}/{COMMA})
+STR_PERFORMANCE_DETAIL_AMOUNT_WEIGHT                            :{BLACK}({WEIGHT_SHORT}/{WEIGHT_SHORT})
+STR_PERFORMANCE_DETAIL_AMOUNT_VOLUME                            :{BLACK}({VOLUME_SHORT}/{VOLUME_SHORT})
+STR_PERFORMANCE_DETAIL_AMOUNT_FLAG_FALSE                        :{BLACK}(No)
+STR_PERFORMANCE_DETAIL_AMOUNT_FLAG_TRUE                         :{BLACK}(Yes)
 STR_PERFORMANCE_DETAIL_PERCENT                                  :{WHITE}{NUM}%
 STR_PERFORMANCE_DETAIL_SELECT_COMPANY_TOOLTIP                   :{BLACK}View details about this company
 ############ Those following lines need to be in this order!!
