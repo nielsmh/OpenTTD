@@ -10,6 +10,7 @@ cargopacket.cpp
 cargotype.cpp
 cheat.cpp
 command.cpp
+companyrating.cpp
 console.cpp
 console_cmds.cpp
 cpu.cpp

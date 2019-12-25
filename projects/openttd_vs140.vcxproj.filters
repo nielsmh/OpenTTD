@@ -135,6 +135,9 @@
     <ClCompile Include="..\src\command.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\companyrating.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\console.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -967,6 +970,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\video\sdl_v.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\video\sdl2_v.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\settings_func.h">
@@ -3066,6 +3072,9 @@
     <ClCompile Include="..\src\video\sdl_v.cpp">
       <Filter>Video</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\video\sdl2_v.cpp">
+      <Filter>Video</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\video\win32_v.cpp">
       <Filter>Video</Filter>
     </ClCompile>
@@ -3085,6 +3094,9 @@
       <Filter>Sound</Filter>
     </ClCompile>
     <ClCompile Include="..\src\sound\sdl_s.cpp">
+      <Filter>Sound</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\sound\sdl2_s.cpp">
       <Filter>Sound</Filter>
     </ClCompile>
     <ClCompile Include="..\src\sound\win32_s.cpp">
