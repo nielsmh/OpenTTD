@@ -45,7 +45,6 @@ int64 _score_part[MAX_COMPANIES][SCORE_END];
 int UpdateCompanyRatingAndValue(Company *c, bool update)
 {
 	Owner owner = c->index;
-	int score = 0;
 
 	memset(_score_part[owner], 0, sizeof(_score_part[owner]));
 
@@ -140,11 +139,10 @@ int UpdateCompanyRatingAndValue(Company *c, bool update)
 		_score_part[owner][SCORE_LOAN] = c->current_loan / 1000;
 	}
 
-	/* Now we calculate the score for each item.. */
+	/* Now we calculate the score for each item. */
+	int score = 0;
 	{
 		int total_score = 0;
-		int s;
-		score = 0;
 		for (ScoreID i = SCORE_BEGIN; i < SCORE_END; i++) {
 			/* Skip the total */
 			if (i == SCORE_TOTAL) continue;
@@ -158,11 +156,10 @@ int UpdateCompanyRatingAndValue(Company *c, bool update)
 			}
 			if (_score_info[i].unit == SCOREUNIT_FLAG) {
 				/* Flags give full score for anything better than zero */
-				s = (value > 0) ? _score_info[i].score : 0;
+				score += (value > 0) ? _score_info[i].score : 0;
 			} else {
-				s = Clamp<int64>(value, 0, needed) * _score_info[i].score / needed;
+				score += Clamp<int64>(value, 0, needed) * _score_info[i].score / needed;
 			}
-			score += s;
 			total_score += _score_info[i].score;
 		}
 
