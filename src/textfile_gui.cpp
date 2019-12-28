@@ -333,17 +333,18 @@ static void Xunzip(byte **bufp, size_t *sizep)
 
 #if defined(WITH_ZLIB) || defined(WITH_LIBLZMA)
 	const char *suffix = strrchr(textfile, '.');
-	if (suffix == nullptr) return;
-#endif
+	if (suffix != nullptr) {
 
-#if defined(WITH_ZLIB)
-	/* In-place gunzip */
-	if (strcmp(suffix, ".gz") == 0) Gunzip((byte**)&this->text, &filesize);
-#endif
+# if defined(WITH_ZLIB)
+		/* In-place gunzip */
+		if (strcmp(suffix, ".gz") == 0) Gunzip((byte **)&this->text, &filesize);
+# endif
 
-#if defined(WITH_LIBLZMA)
-	/* In-place xunzip */
-	if (strcmp(suffix, ".xz") == 0) Xunzip((byte**)&this->text, &filesize);
+# if defined(WITH_LIBLZMA)
+		/* In-place xunzip */
+		if (strcmp(suffix, ".xz") == 0) Xunzip((byte **)&this->text, &filesize);
+# endif
+	}
 #endif
 
 	if (!this->text) return;
