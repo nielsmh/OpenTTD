@@ -15,11 +15,12 @@
 #include "textfile_type.h"
 #include "window_gui.h"
 
-const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filename);
+const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filename, TextDirection *text_dir = nullptr);
 
 /** Window for displaying a textfile */
 struct TextfileWindow : public Window, MissingGlyphSearcher {
 	TextfileType file_type;          ///< Type of textfile to view.
+	TextDirection text_direction;    ///< Known text direction of the file's content.
 	Scrollbar *vscroll;              ///< Vertical scrollbar.
 	Scrollbar *hscroll;              ///< Horizontal scrollbar.
 	char *text;                      ///< Lines of text from the NewGRF's textfile.

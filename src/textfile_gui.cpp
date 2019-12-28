@@ -58,7 +58,7 @@ static WindowDesc _textfile_desc(
 	_nested_textfile_widgets, lengthof(_nested_textfile_widgets)
 );
 
-TextfileWindow::TextfileWindow(TextfileType file_type) : Window(&_textfile_desc), file_type(file_type)
+TextfileWindow::TextfileWindow(TextfileType file_type) : Window(&_textfile_desc), file_type(file_type), text_direction(TD_LTR)
 {
 	this->CreateNestedTree();
 	this->vscroll = this->GetScrollbar(WID_TF_VSCROLLBAR);
@@ -150,6 +150,9 @@ void TextfileWindow::SetupScrollbars()
 	int line_height = FONT_HEIGHT_MONO;
 	int y_offset = -this->vscroll->GetPosition();
 
+	TextDirection old_text_dir = _current_text_dir;
+	_current_text_dir = this->text_direction;
+
 	for (uint i = 0; i < this->lines.size(); i++) {
 		if (IsWidgetLowered(WID_TF_WRAPTEXT)) {
 			y_offset = DrawStringMultiLine(0, right - x, y_offset, bottom - y, this->lines[i], TC_WHITE, SA_TOP | SA_LEFT, false, FS_MONO);
@@ -159,6 +162,7 @@ void TextfileWindow::SetupScrollbars()
 		}
 	}
 
+	_current_text_dir = old_text_dir;
 	_cur_dpi = old_dpi;
 }
 
@@ -383,7 +387,7 @@ static void Xunzip(byte **bufp, size_t *sizep)
  * @param filename The filename of the content to look for.
  * @return The path to the textfile, \c nullptr otherwise.
  */
-const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filename)
+const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filename, TextDirection *text_dir)
 {
 	static const char * const prefixes[] = {
 		"readme",
@@ -413,12 +417,14 @@ const char *GetTextfile(TextfileType type, Subdirectory dir, const char *filenam
 	};
 
 	for (size_t i = 0; i < lengthof(exts); i++) {
+		if (text_dir != nullptr) *text_dir = _current_text_dir;
 		seprintf(slash + 1, lastof(file_path), "%s_%s.%s", prefix, GetCurrentLanguageIsoCode(), exts[i]);
 		if (FioCheckFileExists(file_path, dir)) return file_path;
 
 		seprintf(slash + 1, lastof(file_path), "%s_%.2s.%s", prefix, GetCurrentLanguageIsoCode(), exts[i]);
 		if (FioCheckFileExists(file_path, dir)) return file_path;
 
+		if (text_dir != nullptr) *text_dir = TD_LTR;
 		seprintf(slash + 1, lastof(file_path), "%s.%s", prefix, exts[i]);
 		if (FioCheckFileExists(file_path, dir)) return file_path;
 	}
