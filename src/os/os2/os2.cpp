@@ -78,9 +78,9 @@ void FiosGetDrives(FileList &file_list)
 			fios->type = FIOS_TYPE_DRIVE;
 			fios->mtime = 0;
 #ifndef __INNOTEK_LIBC__
-			snprintf(fios->name, lengthof(fios->name),  "%c:", 'A' + disk - 1);
+			snprintf(fios->name, lengthof(fios->name),  "%c:" PATHSEP, 'A' + disk - 1);
 #else
-			snprintf(fios->name, lengthof(fios->name),  "%c:", disk);
+			snprintf(fios->name, lengthof(fios->name),  "%c:" PATHSEP, disk);
 #endif
 			strecpy(fios->title, fios->name, lastof(fios->title));
 		}

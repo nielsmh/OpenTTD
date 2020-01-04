@@ -151,10 +151,10 @@
 	#pragma once
 	#ifdef _WIN64
 		/* No 64-bit Windows below XP, so we can safely assume it as the target platform. */
-		#define NTDDI_VERSION NTDDI_WINXP // Windows XP
-		#define _WIN32_WINNT 0x501        // Windows XP
-		#define _WIN32_WINDOWS 0x501      // Windows XP
-		#define WINVER 0x0501             // Windows XP
+		#define NTDDI_VERSION NTDDI_WIN6  // Windows Vista
+		#define _WIN32_WINNT 0x600        // Windows Vista
+		#define _WIN32_WINDOWS 0x600      // Windows Vista
+		#define WINVER 0x0600             // Windows Vista
 		#define _WIN32_IE_ 0x0600         // 6.0 (XP+)
 	#else
 		/* Define a win32 target platform, to override defaults of the SDK

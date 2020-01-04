@@ -212,9 +212,45 @@ void FiosGetDrives(FileList &file_list)
 		FiosItem *fios = file_list.Append();
 		fios->type = FIOS_TYPE_DRIVE;
 		fios->mtime = 0;
-		seprintf(fios->name, lastof(fios->name),  "%c:", s[0] & 0xFF);
-		strecpy(fios->title, fios->name, lastof(fios->title));
+		seprintf(fios->name, lastof(fios->name),  "%c:" PATHSEP, s[0] & 0xFF);
+		seprintf(fios->title, lastof(fios->title),  "%c:", s[0] & 0xFF);
 		while (*s++ != '\0') { /* Nothing */ }
+	}
+
+	static KNOWNFOLDERID folderids[] = {
+		FOLDERID_Desktop,
+		FOLDERID_SavedGames,
+		FOLDERID_Documents,
+		FOLDERID_Downloads,
+	};
+	IKnownFolderManager *foldermgr = nullptr;
+	if (CoCreateInstance(CLSID_KnownFolderManager, nullptr, CLSCTX_INPROC_SERVER, IID_IKnownFolderManager, (void **)&foldermgr) == S_OK) {
+		for (KNOWNFOLDERID fid : folderids) {
+			IKnownFolder *folder = nullptr;
+			if (SUCCEEDED(foldermgr->GetFolder(fid, &folder))) {
+				LPWSTR path = nullptr;
+				if (SUCCEEDED(folder->GetPath(KF_FLAG_NO_ALIAS, &path))) {
+					FiosItem *fios = file_list.Append();
+					fios->type = FIOS_TYPE_DRIVE;
+					fios->mtime = 0;
+					strecpy(fios->name, FS2OTTD(path), lastof(fios->name));
+					strecpy(fios->title, FS2OTTD(path), lastof(fios->title));
+					CoTaskMemFree(path);
+
+					IShellItem *shitem = nullptr;
+					if (SUCCEEDED(folder->GetShellItem(KF_FLAG_NO_ALIAS, IID_IShellItem, (void **)&shitem))) {
+						LPWSTR title = nullptr;
+						if (SUCCEEDED(shitem->GetDisplayName(SIGDN_NORMALDISPLAY, &title))) {
+							strecpy(fios->title, FS2OTTD(title), lastof(fios->title));
+							CoTaskMemFree(title);
+						}
+						shitem->Release();
+					}
+				}
+				folder->Release();
+			}
+		}
+		foldermgr->Release();
 	}
 }
 
