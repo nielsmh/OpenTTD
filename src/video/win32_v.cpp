@@ -79,7 +79,7 @@ static Palette _local_palette;
 /** Sprite mouse cursors converted to Win32 cursors */
 static std::map<SpriteID, HCURSOR> _system_cursor_map;
 /** Use a system cursor instead of custom/sprite cursor? */
-static bool _use_system_cursor;
+static bool _use_system_cursor = false;
 
 static void MakePalette()
 {
@@ -118,21 +118,23 @@ static void UpdatePalette(HDC dc, uint start, uint count)
 	SetDIBColorTable(dc, start, count, rgb);
 }
 
-static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite)
+static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite, Blitter *bl)
 {
-	const Sprite *spr = GetSprite(cursor_sprite, SpriteType::ST_NORMAL);
+	//const Sprite *spr = GetSprite(cursor_sprite, SpriteType::ST_NORMAL);
+	byte *spr_data = (byte *)GetRawSprite(cursor_sprite, ST_NORMAL);
+	Point spr_offs;
+	Dimension spr_size = GetSpriteSize(cursor_sprite, &spr_offs, ZOOM_LVL_OUT_4X);
 
 	/* There's limits to how large a system cursor can be */
 	static const int CURSOR_MAX_X = GetSystemMetrics(SM_CXCURSOR);
 	static const int CURSOR_MAX_Y = GetSystemMetrics(SM_CYCURSOR);
-	if (spr->width/4 > CURSOR_MAX_X || spr->height/4 > CURSOR_MAX_Y) return nullptr;
+	if (spr_size.width > CURSOR_MAX_X || spr_size.height > CURSOR_MAX_Y) return nullptr;
 
 	BITMAPINFO bmi = {
 		/* BITMAPINFOHEADER bmiHeader */
 		{
 			sizeof(BITMAPINFOHEADER),
-			CURSOR_MAX_X,
-			-CURSOR_MAX_Y, /* bottom-up bitmap */
+			CURSOR_MAX_X, -CURSOR_MAX_Y,
 			1, 32, BI_RGB, /* one plane in 32 bpp */
 			0,             /* automatic size in bytes */
 			3780, 3780,    /* 3780 pixels per meter = 96 dpi */
@@ -152,13 +154,14 @@ static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite)
 	HBITMAP mbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&mbits, nullptr, 0);
 
 	MemSetT<uint32>(cbits, 0, CURSOR_MAX_X * CURSOR_MAX_Y);
-	MemSetT<uint32>(mbits, 0xFFFFFFFF, CURSOR_MAX_X * CURSOR_MAX_Y);
+	MemSetT<uint32>(mbits, 0xffffffff, CURSOR_MAX_X * CURSOR_MAX_Y);
 
-	for (uint y = 0; y < spr->height; y += 4) {
-		uint32 *crow = cbits + (ptrdiff_t)(spr->height/4 - y/4 - 1) * spr->width/4;
-		uint32 *mrow = mbits + (ptrdiff_t)(spr->height/4 - y/4 - 1) * spr->width/4;
-		for (uint x = 0; x < spr->width/4; x += 1) {
-			byte pixel = spr->data[x*4 + y * spr->width];
+#if 0
+	for (uint y = 0; y < spr_size.height; ++y) {
+		uint32 *crow = cbits + (ptrdiff_t)(spr_size.height - y - 1) * spr_size.width;
+		uint32 *mrow = mbits + (ptrdiff_t)(spr_size.height - y - 1) * spr_size.width;
+		for (uint x = 0; x < spr_size.width; ++x) {
+			byte pixel = spr_data[x + y * spr_size.width];
 			const Colour &c = _cur_palette.palette[pixel];
 			if (c.a == 0) {
 				/* Transparent pixel */
@@ -171,16 +174,32 @@ static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite)
 			}
 		}
 	}
+#else
+	Blitter::BlitterParams bp;
+	bp.dst = cbits;
+	bp.top = 0;
+	bp.left = 0;
+	bp.width = bmi.bmiHeader.biWidth;
+	bp.pitch = bmi.bmiHeader.biWidth;
+	bp.height = bmi.bmiHeader.biHeight;
+	bp.sprite = spr_data;
+	bp.sprite_width = spr_size.width;
+	bp.sprite_height = spr_size.height;
+	bp.skip_left = 0;
+	bp.skip_top = 0;
+	bp.remap = nullptr;
+	bl->Draw(&bp, BM_NORMAL, ZOOM_LVL_MIN);
+#endif
 
 	ICONINFO iconinfo = {
 		false,
-		spr->x_offs, spr->y_offs,
+		spr_offs.x, spr_offs.y,
 		mbmp, cbmp
 	};
 	HCURSOR cursor = CreateIconIndirect(&iconinfo);
 
-	DeleteObject(cbmp);
-	DeleteObject(mbmp);
+	//DeleteObject(cbmp);
+	//DeleteObject(mbmp);
 
 	return cursor;
 }
@@ -191,6 +210,10 @@ static void RebuildSystemCursorMap()
 		DestroyIcon(mapping.second);
 	}
 	_system_cursor_map.clear();
+
+	Blitter *bl = BlitterFactory::GetCurrentBlitter();
+	_use_system_cursor = bl->GetScreenDepth() == 32;
+	if (!_use_system_cursor) return;
 
 	static const CursorID all_cursors[] = {
 		SPR_CURSOR_MOUSE,
@@ -279,8 +302,9 @@ static void RebuildSystemCursorMap()
 		SPR_CURSOR_BUILDSIGNALS_FIRST,
 		SPR_CURSOR_BUILDSIGNALS_LAST,
 	};
+
 	for (CursorID cursor_sprite : all_cursors) {
-		_system_cursor_map[cursor_sprite] = CreateCursorFromSprite(cursor_sprite);
+		_system_cursor_map[cursor_sprite] = CreateCursorFromSprite(cursor_sprite, bl);
 	}
 }
 
@@ -889,11 +913,12 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 			if (!_use_system_cursor) UndrawMouseCursor();
 			_cursor.in_window = false;
 
-			if (!_left_button_down && !_right_button_down && !_use_system_cursor) MyShowCursor(true);
+			if (!_left_button_down && !_right_button_down) MyShowCursor(!_use_system_cursor);
 			return 0;
 
 		case WM_SETCURSOR: {
 			if (!_use_system_cursor) return 0;
+			if (LOWORD(lParam) != HTCLIENT) return DefWindowProc(hwnd, msg, wParam, lParam);
 			HCURSOR hc = _system_cursor_map[_cursor.sprite_seq[0].sprite];
 			if (hc == nullptr) return 0;
 			SetCursor(hc);
@@ -938,7 +963,7 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 				ClientToScreen(hwnd, &pt);
 				SetCursorPos(pt.x, pt.y);
 			}
-			if (!_use_system_cursor) MyShowCursor(false);
+			MyShowCursor(_use_system_cursor);
 			HandleMouseEvents();
 			return 0;
 		}
@@ -1352,7 +1377,6 @@ void VideoDriver_Win32::MainLoop()
 	std::thread draw_thread;
 	std::unique_lock<std::recursive_mutex> draw_lock;
 
-	_use_system_cursor = true;
 	RebuildSystemCursorMap();
 
 	if (_draw_threaded) {
@@ -1503,6 +1527,9 @@ bool VideoDriver_Win32::ToggleFullscreen(bool full_screen)
 
 bool VideoDriver_Win32::AfterBlitterChange()
 {
+	static bool first_time = true;
+	if (!first_time) RebuildSystemCursorMap();
+	first_time = false;
 	return AllocateDibSection(_screen.width, _screen.height, true) && this->MakeWindow(_fullscreen);
 }
 
