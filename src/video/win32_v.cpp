@@ -118,101 +118,127 @@ static void UpdatePalette(HDC dc, uint start, uint count)
 	SetDIBColorTable(dc, start, count, rgb);
 }
 
-static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite, Blitter *bl)
-{
-	//const Sprite *spr = GetSprite(cursor_sprite, SpriteType::ST_NORMAL);
-	byte *spr_data = (byte *)GetRawSprite(cursor_sprite, ST_NORMAL);
-	Point spr_offs;
-	Dimension spr_size = GetSpriteSize(cursor_sprite, &spr_offs, ZOOM_LVL_OUT_4X);
+class DibSectionSpriteEncoder : public SpriteEncoder {
+private:
+	int cursor_max_x;
+	int cursor_max_y;
+	BITMAPINFO bmi;
 
-	/* There's limits to how large a system cursor can be */
-	static const int CURSOR_MAX_X = GetSystemMetrics(SM_CXCURSOR);
-	static const int CURSOR_MAX_Y = GetSystemMetrics(SM_CYCURSOR);
-	if (spr_size.width > CURSOR_MAX_X || spr_size.height > CURSOR_MAX_Y) return nullptr;
+public:
+	DibSectionSpriteEncoder()
+	{
+		this->cursor_max_x = GetSystemMetrics(SM_CXCURSOR);
+		this->cursor_max_y = GetSystemMetrics(SM_CYCURSOR);
 
-	BITMAPINFO bmi = {
-		/* BITMAPINFOHEADER bmiHeader */
-		{
-			sizeof(BITMAPINFOHEADER),
-			CURSOR_MAX_X, -CURSOR_MAX_Y,
-			1, 32, BI_RGB, /* one plane in 32 bpp */
-			0,             /* automatic size in bytes */
-			3780, 3780,    /* 3780 pixels per meter = 96 dpi */
-			0, 0           /* no colours specified as most important */
-		},
-		/* RGBQUAD bmiColors[] */
-		{
-			/* empty */
-		}
-	};
+		bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+		bmi.bmiHeader.biWidth = this->cursor_max_x;
+		bmi.bmiHeader.biHeight = -this->cursor_max_y;
+		bmi.bmiHeader.biPlanes = 1;
+		bmi.bmiHeader.biBitCount = 32;
+		bmi.bmiHeader.biCompression = BI_RGB;
+		bmi.bmiHeader.biSizeImage = 0;
+		bmi.bmiHeader.biXPelsPerMeter = 3780; /* 96 dpi / 25.4 mm/inch * 1000 mm/m */
+		bmi.bmiHeader.biYPelsPerMeter = 3780;
+		bmi.bmiHeader.biClrUsed = 0;
+		bmi.bmiHeader.biClrImportant = 0;
+	}
 
-	/* Colour bits */
-	uint32 *cbits = nullptr;
-	HBITMAP cbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&cbits, nullptr, 0);
-	/* Mask bits */
-	uint32 *mbits = nullptr;
-	HBITMAP mbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&mbits, nullptr, 0);
+	bool Is32BppSupported() override
+	{
+		return true;
+	}
 
-	MemSetT<uint32>(cbits, 0, CURSOR_MAX_X * CURSOR_MAX_Y);
-	MemSetT<uint32>(mbits, 0xffffffff, CURSOR_MAX_X * CURSOR_MAX_Y);
+	Sprite *Encode(const SpriteLoader::Sprite *sprite_allzooms, AllocatorProc *allocator) override
+	{
+		const SpriteLoader::Sprite &sprite = sprite_allzooms[ZOOM_LVL_OUT_4X];
 
-#if 0
-	for (uint y = 0; y < spr_size.height; ++y) {
-		uint32 *crow = cbits + (ptrdiff_t)(spr_size.height - y - 1) * spr_size.width;
-		uint32 *mrow = mbits + (ptrdiff_t)(spr_size.height - y - 1) * spr_size.width;
-		for (uint x = 0; x < spr_size.width; ++x) {
-			byte pixel = spr_data[x + y * spr_size.width];
-			const Colour &c = _cur_palette.palette[pixel];
-			if (c.a == 0) {
-				/* Transparent pixel */
-				crow[x] = 0;
-				mrow[x] = 0xFFFFFFFF;
-			} else {
-				/* Regular pixel */
-				crow[x] = c.b | (c.g << 8) | (c.r << 16);
-				mrow[x] = 0;
+		if (sprite.width > this->cursor_max_x || sprite.height > this->cursor_max_y) return nullptr;
+		if ((sprite.colours & (SCC_PAL | SCC_RGB)) == 0) return nullptr;
+
+		const uint32 mOpaque = 0;
+		const uint32 mTransparent = 0xFFFFFFFF;
+
+		/* Bitmap for colour bits */
+		uint32 *cbits;
+		HBITMAP cbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&cbits, nullptr, 0);
+		MemSetT<uint32>(cbits, 0, this->cursor_max_x * this->cursor_max_y);
+
+		/* Bitmap for mask bits */
+		uint32 *mbits;
+		HBITMAP mbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&mbits, nullptr, 0);
+		MemSetT<uint32>(mbits, mTransparent, this->cursor_max_x * this->cursor_max_y);
+
+		/* Fill pixels */
+		if ((sprite.colours & (SCC_RGB | SCC_ALPHA)) == (SCC_RGB | SCC_ALPHA)) {
+			for (uint y = 0; y < sprite.height; ++y) {
+				for (uint x = 0; x < sprite.width; ++x) {
+					SpriteLoader::CommonPixel &src = sprite.data[x + y * sprite.width];
+					uint32 &cdst = cbits[x + y * this->cursor_max_x];
+					uint32 &mdst = mbits[x + y * this->cursor_max_x];
+					cdst = src.b | (src.g << 8) | (src.r << 16);
+					mdst = src.a > 127 ? mTransparent : mOpaque;
+				}
+			}
+		} else if ((sprite.colours & (SCC_RGB | SCC_PAL)) == (SCC_RGB | SCC_PAL)) {
+			for (uint y = 0; y < sprite.height; ++y) {
+				for (uint x = 0; x < sprite.width; ++x) {
+					SpriteLoader::CommonPixel &src = sprite.data[x + y * sprite.width];
+					uint32 &cdst = cbits[x + y * this->cursor_max_x];
+					uint32 &mdst = mbits[x + y * this->cursor_max_x];
+					cdst = src.b | (src.g << 8) | (src.r << 16);
+					mdst = src.m == 0 ? mTransparent : mOpaque;
+				}
+			}
+		} else if (sprite.colours & SCC_PAL) {
+			for (uint y = 0; y < sprite.height; ++y) {
+				for (uint x = 0; x < sprite.width; ++x) {
+					SpriteLoader::CommonPixel &src = sprite.data[x + y * sprite.width];
+					uint32 &cdst = cbits[x + y * this->cursor_max_x];
+					uint32 &mdst = mbits[x + y * this->cursor_max_x];
+					Colour &c = _cur_palette.palette[src.m];
+					cdst = c.b | (c.g << 8) | (c.r << 16);
+					mdst = src.m == 0 ? mTransparent : mOpaque;
+				}
 			}
 		}
+
+		/* Create cursor */
+		ICONINFO iconinfo = {
+			false,
+			(DWORD)min(0, -sprite.x_offs), (DWORD)min(0, -sprite.y_offs),
+			mbmp, cbmp
+		};
+		HCURSOR cursor = CreateIconIndirect(&iconinfo);
+
+		/*Sprite *dst_sprite = (Sprite *)allocator(sizeof(Sprite) + sizeof(HCURSOR));
+		dst_sprite->width = bmi.bmiHeader.biWidth;
+		dst_sprite->height = bmi.bmiHeader.biHeight;
+		dst_sprite->x_offs = sprite.x_offs;
+		dst_sprite->y_offs = sprite.y_offs;
+		(HCURSOR)dst_sprite->data = cursor; */
+
+		return (Sprite *)(void *)cursor;
 	}
-#else
-	Blitter::BlitterParams bp;
-	bp.dst = cbits;
-	bp.top = 0;
-	bp.left = 0;
-	bp.width = bmi.bmiHeader.biWidth;
-	bp.pitch = bmi.bmiHeader.biWidth;
-	bp.height = bmi.bmiHeader.biHeight;
-	bp.sprite = spr_data;
-	bp.sprite_width = spr_size.width;
-	bp.sprite_height = spr_size.height;
-	bp.skip_left = 0;
-	bp.skip_top = 0;
-	bp.remap = nullptr;
-	bl->Draw(&bp, BM_NORMAL, ZOOM_LVL_MIN);
-#endif
 
-	ICONINFO iconinfo = {
-		false,
-		spr_offs.x, spr_offs.y,
-		mbmp, cbmp
-	};
-	HCURSOR cursor = CreateIconIndirect(&iconinfo);
-
-	//DeleteObject(cbmp);
-	//DeleteObject(mbmp);
-
-	return cursor;
-}
+	HCURSOR MakeCursor(CursorID cursor_sprite)
+	{
+		return (HCURSOR)GetRawSprite(cursor_sprite, ST_NORMAL, SimpleSpriteAlloc, this);
+	}
+};
 
 static void RebuildSystemCursorMap()
 {
 	for (std::pair<SpriteID, HCURSOR> mapping : _system_cursor_map) {
+		ICONINFO iconinfo;
+		if (GetIconInfo(mapping.second, &iconinfo)) {
+			DeleteObject(iconinfo.hbmColor);
+			DeleteObject(iconinfo.hbmMask);
+		}
 		DestroyIcon(mapping.second);
 	}
 	_system_cursor_map.clear();
 
-	Blitter *bl = BlitterFactory::GetCurrentBlitter();
-	_use_system_cursor = bl->GetScreenDepth() == 32;
+	_use_system_cursor = true;
 	if (!_use_system_cursor) return;
 
 	static const CursorID all_cursors[] = {
@@ -303,15 +329,26 @@ static void RebuildSystemCursorMap()
 		SPR_CURSOR_BUILDSIGNALS_LAST,
 	};
 
+	std::unique_ptr<DibSectionSpriteEncoder> enc(new DibSectionSpriteEncoder);
 	for (CursorID cursor_sprite : all_cursors) {
-		_system_cursor_map[cursor_sprite] = CreateCursorFromSprite(cursor_sprite, bl);
+		_system_cursor_map[cursor_sprite] = enc->MakeCursor(cursor_sprite);
 	}
 }
 
 bool VideoDriver_Win32::ClaimMousePointer()
 {
-	if (!_use_system_cursor) MyShowCursor(false, true);
+	MyShowCursor(false, true);
 	return true;
+}
+
+bool VideoDriver_Win32::UseSystemCursor()
+{
+	return _use_system_cursor && _system_cursor_map.contains(_cursor.sprite_seq[0].sprite);
+}
+
+void VideoDriver_Win32::ClearSystemSprites()
+{
+	RebuildSystemCursorMap();
 }
 
 struct VkMapping {
@@ -910,10 +947,10 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 			return 0;
 
 		case WM_MOUSELEAVE:
-			if (!_use_system_cursor) UndrawMouseCursor();
+			UndrawMouseCursor();
 			_cursor.in_window = false;
 
-			if (!_left_button_down && !_right_button_down) MyShowCursor(!_use_system_cursor);
+			if (!_left_button_down && !_right_button_down) MyShowCursor(true);
 			return 0;
 
 		case WM_SETCURSOR: {
@@ -1484,7 +1521,7 @@ void VideoDriver_Win32::MainLoop()
 			if (_draw_threaded) draw_lock.lock();
 
 			NetworkDrawChatMessage();
-			if (!_use_system_cursor) DrawMouseCursor();
+			DrawMouseCursor();
 		}
 	}
 
@@ -1527,9 +1564,6 @@ bool VideoDriver_Win32::ToggleFullscreen(bool full_screen)
 
 bool VideoDriver_Win32::AfterBlitterChange()
 {
-	static bool first_time = true;
-	if (!first_time) RebuildSystemCursorMap();
-	first_time = false;
 	return AllocateDibSection(_screen.width, _screen.height, true) && this->MakeWindow(_fullscreen);
 }
 

@@ -35,6 +35,10 @@ public:
 
 	bool ClaimMousePointer() override;
 
+	bool UseSystemCursor() override;
+
+	void ClearSystemSprites() override;
+
 	void EditBoxLostFocus() override;
 
 	const char *GetName() const override { return "win32"; }
