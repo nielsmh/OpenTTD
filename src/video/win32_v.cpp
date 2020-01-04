@@ -22,12 +22,14 @@
 #include "../window_gui.h"
 #include "../window_func.h"
 #include "../framerate_type.h"
+#include "../table/sprites.h"
 #include "win32_v.h"
 #include <windows.h>
 #include <imm.h>
 #include <mutex>
 #include <condition_variable>
 #include <algorithm>
+#include <map>
 
 #include "../safeguards.h"
 
@@ -74,6 +76,10 @@ static std::condition_variable_any *_draw_signal = nullptr;
 static volatile bool _draw_continue;
 /** Local copy of the palette for use in the drawing thread. */
 static Palette _local_palette;
+/** Sprite mouse cursors converted to Win32 cursors */
+static std::map<SpriteID, HCURSOR> _system_cursor_map;
+/** Use a system cursor instead of custom/sprite cursor? */
+static bool _use_system_cursor;
 
 static void MakePalette()
 {
@@ -112,9 +118,175 @@ static void UpdatePalette(HDC dc, uint start, uint count)
 	SetDIBColorTable(dc, start, count, rgb);
 }
 
+static HCURSOR CreateCursorFromSprite(CursorID cursor_sprite)
+{
+	const Sprite *spr = GetSprite(cursor_sprite, SpriteType::ST_NORMAL);
+
+	/* There's limits to how large a system cursor can be */
+	static const int CURSOR_MAX_X = GetSystemMetrics(SM_CXCURSOR);
+	static const int CURSOR_MAX_Y = GetSystemMetrics(SM_CYCURSOR);
+	if (spr->width/4 > CURSOR_MAX_X || spr->height/4 > CURSOR_MAX_Y) return nullptr;
+
+	BITMAPINFO bmi = {
+		/* BITMAPINFOHEADER bmiHeader */
+		{
+			sizeof(BITMAPINFOHEADER),
+			CURSOR_MAX_X,
+			-CURSOR_MAX_Y, /* bottom-up bitmap */
+			1, 32, BI_RGB, /* one plane in 32 bpp */
+			0,             /* automatic size in bytes */
+			3780, 3780,    /* 3780 pixels per meter = 96 dpi */
+			0, 0           /* no colours specified as most important */
+		},
+		/* RGBQUAD bmiColors[] */
+		{
+			/* empty */
+		}
+	};
+
+	/* Colour bits */
+	uint32 *cbits = nullptr;
+	HBITMAP cbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&cbits, nullptr, 0);
+	/* Mask bits */
+	uint32 *mbits = nullptr;
+	HBITMAP mbmp = CreateDIBSection(GetDC(_wnd.main_wnd), &bmi, DIB_RGB_COLORS, (void **)&mbits, nullptr, 0);
+
+	MemSetT<uint32>(cbits, 0, CURSOR_MAX_X * CURSOR_MAX_Y);
+	MemSetT<uint32>(mbits, 0xFFFFFFFF, CURSOR_MAX_X * CURSOR_MAX_Y);
+
+	for (uint y = 0; y < spr->height; y += 4) {
+		uint32 *crow = cbits + (ptrdiff_t)(spr->height/4 - y/4 - 1) * spr->width/4;
+		uint32 *mrow = mbits + (ptrdiff_t)(spr->height/4 - y/4 - 1) * spr->width/4;
+		for (uint x = 0; x < spr->width/4; x += 1) {
+			byte pixel = spr->data[x*4 + y * spr->width];
+			const Colour &c = _cur_palette.palette[pixel];
+			if (c.a == 0) {
+				/* Transparent pixel */
+				crow[x] = 0;
+				mrow[x] = 0xFFFFFFFF;
+			} else {
+				/* Regular pixel */
+				crow[x] = c.b | (c.g << 8) | (c.r << 16);
+				mrow[x] = 0;
+			}
+		}
+	}
+
+	ICONINFO iconinfo = {
+		false,
+		spr->x_offs, spr->y_offs,
+		mbmp, cbmp
+	};
+	HCURSOR cursor = CreateIconIndirect(&iconinfo);
+
+	DeleteObject(cbmp);
+	DeleteObject(mbmp);
+
+	return cursor;
+}
+
+static void RebuildSystemCursorMap()
+{
+	for (std::pair<SpriteID, HCURSOR> mapping : _system_cursor_map) {
+		DestroyIcon(mapping.second);
+	}
+	_system_cursor_map.clear();
+
+	static const CursorID all_cursors[] = {
+		SPR_CURSOR_MOUSE,
+		SPR_CURSOR_ZZZ,
+		SPR_CURSOR_BUOY,
+		SPR_CURSOR_QUERY,
+		SPR_CURSOR_HQ,
+		SPR_CURSOR_SHIP_DEPOT,
+		SPR_CURSOR_SIGN,
+		SPR_CURSOR_TREE,
+		SPR_CURSOR_BUY_LAND,
+		SPR_CURSOR_LEVEL_LAND,
+		SPR_CURSOR_TOWN,
+		SPR_CURSOR_INDUSTRY,
+		SPR_CURSOR_ROCKY_AREA,
+		SPR_CURSOR_DESERT,
+		SPR_CURSOR_TRANSMITTER,
+		SPR_CURSOR_AIRPORT,
+		SPR_CURSOR_DOCK,
+		SPR_CURSOR_CANAL,
+		SPR_CURSOR_LOCK,
+		SPR_CURSOR_RIVER,
+		SPR_CURSOR_AQUEDUCT,
+		SPR_CURSOR_BRIDGE,
+		SPR_CURSOR_NS_TRACK,
+		SPR_CURSOR_SWNE_TRACK,
+		SPR_CURSOR_EW_TRACK,
+		SPR_CURSOR_NWSE_TRACK,
+		SPR_CURSOR_NS_MONO,
+		SPR_CURSOR_SWNE_MONO,
+		SPR_CURSOR_EW_MONO,
+		SPR_CURSOR_NWSE_MONO,
+		SPR_CURSOR_NS_MAGLEV,
+		SPR_CURSOR_SWNE_MAGLEV,
+		SPR_CURSOR_EW_MAGLEV,
+		SPR_CURSOR_NWSE_MAGLEV,
+		SPR_CURSOR_NS_ELRAIL,
+		SPR_CURSOR_SWNE_ELRAIL,
+		SPR_CURSOR_EW_ELRAIL,
+		SPR_CURSOR_NWSE_ELRAIL,
+		SPR_CURSOR_RAIL_STATION,
+		SPR_CURSOR_TUNNEL_RAIL,
+		SPR_CURSOR_TUNNEL_ELRAIL,
+		SPR_CURSOR_TUNNEL_MONO,
+		SPR_CURSOR_TUNNEL_MAGLEV,
+		SPR_CURSOR_AUTORAIL,
+		SPR_CURSOR_AUTOELRAIL,
+		SPR_CURSOR_AUTOMONO,
+		SPR_CURSOR_AUTOMAGLEV,
+		SPR_CURSOR_WAYPOINT,
+		SPR_CURSOR_RAIL_DEPOT,
+		SPR_CURSOR_ELRAIL_DEPOT,
+		SPR_CURSOR_MONO_DEPOT,
+		SPR_CURSOR_MAGLEV_DEPOT,
+		SPR_CURSOR_CONVERT_RAIL,
+		SPR_CURSOR_CONVERT_ELRAIL,
+		SPR_CURSOR_CONVERT_MONO,
+		SPR_CURSOR_CONVERT_MAGLEV,
+		SPR_CURSOR_ROAD_NESW,
+		SPR_CURSOR_ROAD_NWSE,
+		SPR_CURSOR_AUTOROAD,
+		SPR_CURSOR_TRAMWAY_NESW,
+		SPR_CURSOR_TRAMWAY_NWSE,
+		SPR_CURSOR_AUTOTRAM,
+		SPR_CURSOR_ROAD_DEPOT,
+		SPR_CURSOR_BUS_STATION,
+		SPR_CURSOR_TRUCK_STATION,
+		SPR_CURSOR_ROAD_TUNNEL,
+		SPR_CURSOR_CLONE_TRAIN,
+		SPR_CURSOR_CLONE_ROADVEH,
+		SPR_CURSOR_CLONE_SHIP,
+		SPR_CURSOR_CLONE_AIRPLANE,
+		SPR_CURSOR_DEMOLISH_FIRST,
+		SPR_CURSOR_DEMOLISH_1,
+		SPR_CURSOR_DEMOLISH_2,
+		SPR_CURSOR_DEMOLISH_LAST,
+		SPR_CURSOR_LOWERLAND_FIRST,
+		SPR_CURSOR_LOWERLAND_1,
+		SPR_CURSOR_LOWERLAND_LAST,
+		SPR_CURSOR_RAISELAND_FIRST,
+		SPR_CURSOR_RAISELAND_1,
+		SPR_CURSOR_RAISELAND_LAST,
+		SPR_CURSOR_PICKSTATION_FIRST,
+		SPR_CURSOR_PICKSTATION_1,
+		SPR_CURSOR_PICKSTATION_LAST,
+		SPR_CURSOR_BUILDSIGNALS_FIRST,
+		SPR_CURSOR_BUILDSIGNALS_LAST,
+	};
+	for (CursorID cursor_sprite : all_cursors) {
+		_system_cursor_map[cursor_sprite] = CreateCursorFromSprite(cursor_sprite);
+	}
+}
+
 bool VideoDriver_Win32::ClaimMousePointer()
 {
-	MyShowCursor(false, true);
+	if (!_use_system_cursor) MyShowCursor(false, true);
 	return true;
 }
 
@@ -714,11 +886,19 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 			return 0;
 
 		case WM_MOUSELEAVE:
-			UndrawMouseCursor();
+			if (!_use_system_cursor) UndrawMouseCursor();
 			_cursor.in_window = false;
 
-			if (!_left_button_down && !_right_button_down) MyShowCursor(true);
+			if (!_left_button_down && !_right_button_down && !_use_system_cursor) MyShowCursor(true);
 			return 0;
+
+		case WM_SETCURSOR: {
+			if (!_use_system_cursor) return 0;
+			HCURSOR hc = _system_cursor_map[_cursor.sprite_seq[0].sprite];
+			if (hc == nullptr) return 0;
+			SetCursor(hc);
+			return 1;
+		}
 
 		case WM_MOUSEMOVE: {
 			int x = (int16)LOWORD(lParam);
@@ -758,7 +938,7 @@ static LRESULT CALLBACK WndProcGdi(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
 				ClientToScreen(hwnd, &pt);
 				SetCursorPos(pt.x, pt.y);
 			}
-			MyShowCursor(false);
+			if (!_use_system_cursor) MyShowCursor(false);
 			HandleMouseEvents();
 			return 0;
 		}
@@ -1172,6 +1352,9 @@ void VideoDriver_Win32::MainLoop()
 	std::thread draw_thread;
 	std::unique_lock<std::recursive_mutex> draw_lock;
 
+	_use_system_cursor = true;
+	RebuildSystemCursorMap();
+
 	if (_draw_threaded) {
 		/* Initialise the mutex first, because that's the thing we *need*
 		 * directly in the newly created thread. */
@@ -1277,7 +1460,7 @@ void VideoDriver_Win32::MainLoop()
 			if (_draw_threaded) draw_lock.lock();
 
 			NetworkDrawChatMessage();
-			DrawMouseCursor();
+			if (!_use_system_cursor) DrawMouseCursor();
 		}
 	}
 
