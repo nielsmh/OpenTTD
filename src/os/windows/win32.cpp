@@ -217,6 +217,10 @@ void FiosGetDrives(FileList &file_list)
 		while (*s++ != '\0') { /* Nothing */ }
 	}
 
+	/* Add various user profile folders to the list.
+	 * The Known Folders interface was added in Windows Vista.
+	 * Earlier SHGetFolderPath() does not support the SavedGames or Downloads folders,
+	 * and does not have a convenient way to get the localised display names. */
 	static KNOWNFOLDERID folderids[] = {
 		FOLDERID_Desktop,
 		FOLDERID_SavedGames,
@@ -225,18 +229,25 @@ void FiosGetDrives(FileList &file_list)
 	};
 	IKnownFolderManager *foldermgr = nullptr;
 	if (CoCreateInstance(CLSID_KnownFolderManager, nullptr, CLSCTX_INPROC_SERVER, IID_IKnownFolderManager, (void **)&foldermgr) == S_OK) {
+		/* Iterate our list of folder IDs and try getting an object for them. */
 		for (KNOWNFOLDERID fid : folderids) {
 			IKnownFolder *folder = nullptr;
 			if (SUCCEEDED(foldermgr->GetFolder(fid, &folder))) {
 				LPWSTR path = nullptr;
+				/* Get the real filesystem path for the folder, if possible, and then add the item. */
 				if (SUCCEEDED(folder->GetPath(KF_FLAG_NO_ALIAS, &path))) {
 					FiosItem *fios = file_list.Append();
 					fios->type = FIOS_TYPE_DRIVE;
 					fios->mtime = 0;
+					/* Initially fill the physical path to both name and title. */
 					strecpy(fios->name, FS2OTTD(path), lastof(fios->name));
 					strecpy(fios->title, FS2OTTD(path), lastof(fios->title));
 					CoTaskMemFree(path);
 
+					/* Get the corresponding IShellItem to retrieve the (localised) display name.
+					 * IKnownFolder also has the GetFolderDefinition() method, but the data it retrieves
+					 * will typically be indirect strings, which require a second layer of lookup.
+					 * Using the IShellItem interface gives the correct string with fewer steps. */
 					IShellItem *shitem = nullptr;
 					if (SUCCEEDED(folder->GetShellItem(KF_FLAG_NO_ALIAS, IID_IShellItem, (void **)&shitem))) {
 						LPWSTR title = nullptr;
