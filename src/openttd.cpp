@@ -1320,6 +1320,9 @@ static void CheckCaches()
 	}
 }
 
+uint64 _fake_slowdown = 0;
+char _fake_slowdown_buf[100];
+
 /**
  * State controlling game loop.
  * The state must not be changed from anywhere but here.
@@ -1347,6 +1350,11 @@ void StateGameLoop()
 	PerformanceMeasurer framerate(PFE_GAMELOOP);
 	PerformanceAccumulator::Reset(PFE_GL_LANDSCAPE);
 	if (HasModalProgress()) return;
+
+	for (uint64 slow = 0; slow < _fake_slowdown; slow++) {
+		SetDParam(0, slow);
+		GetString(_fake_slowdown_buf, STR_FRAMERATE_MS_GOOD, lastof(_fake_slowdown_buf));
+	}
 
 	Layouter::ReduceLineCache();
 

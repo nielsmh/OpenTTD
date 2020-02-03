@@ -63,7 +63,10 @@ static bool _emulating_right_button;
 static float _current_magnification;
 #endif
 #ifdef _DEBUG
-static uint32 _tEvent;
+static uint32 _tEvent = 0;
+static uint32 _tEventMax = 0;
+static uint32 _cEvent = 0;
+static uint32 _cEventSlow = 0;
 #endif
 
 
@@ -407,7 +410,14 @@ static bool QZ_PollEvent()
 				untilDate:[ NSDate distantPast ]
 				inMode:NSDefaultRunLoopMode dequeue:YES ];
 #ifdef _DEBUG
-	_tEvent += GetTick() - et0;
+	uint32 et1 = GetTick();
+	_cEvent += 1;
+	if (et1 - et0 > 5) {
+		_cEventSlow += 1;
+		if (_debug_driver_level >= 2) NSLog(@"Slow event: %@", event);
+	}
+	_tEvent += et1 - et0;
+	_tEventMax = max(et1 - et0, _tEventMax);
 #endif
 
 	if (event == nil) return false;
@@ -668,10 +678,12 @@ void QZ_GameLoop()
 	_cocoa_subdriver->Draw(true);
 
 	for (;;) {
+		auto loop_time_start = std::chrono::high_resolution_clock::now();
 		uint32 prev_cur_ticks = cur_ticks; // to check for wrapping
 		InteractiveRandom(); // randomness
 
 		while (QZ_PollEvent()) {}
+		auto loop_time_pollevent = std::chrono::high_resolution_clock::now();
 
 		if (_exit_game) break;
 
@@ -687,6 +699,8 @@ void QZ_GameLoop()
 		}
 
 		cur_ticks = GetTick();
+		bool loop_mode_sleep = false;
+		decltype(loop_time_start) loop_time_work;
 		if (cur_ticks >= next_tick || (_fast_forward && !_pause_mode) || cur_ticks < prev_cur_ticks) {
 			_realtime_tick += cur_ticks - last_cur_ticks;
 			last_cur_ticks = cur_ticks;
@@ -700,6 +714,7 @@ void QZ_GameLoop()
 			if (old_ctrl_pressed != _ctrl_pressed) HandleCtrlChanged();
 
 			GameLoop();
+			loop_time_work = std::chrono::high_resolution_clock::now();
 
 			UpdateWindows();
 			QZ_CheckPaletteAnim();
@@ -708,7 +723,9 @@ void QZ_GameLoop()
 #ifdef _DEBUG
 			uint32 st0 = GetTick();
 #endif
+			loop_mode_sleep = true;
 			CSleep(1);
+			loop_time_work = std::chrono::high_resolution_clock::now();
 #ifdef _DEBUG
 			st += GetTick() - st0;
 #endif
@@ -716,12 +733,20 @@ void QZ_GameLoop()
 			DrawMouseCursor();
 			_cocoa_subdriver->Draw();
 		}
+		auto loop_time_end = std::chrono::high_resolution_clock::now();
+
+		auto loop_dur_total = std::chrono::duration_cast<std::chrono::microseconds>(loop_time_end - loop_time_start).count();
+		auto loop_dur_pollevent = std::chrono::duration_cast<std::chrono::microseconds>(loop_time_pollevent - loop_time_start).count();
+		auto loop_dur_work = std::chrono::duration_cast<std::chrono::microseconds>(loop_time_work - loop_time_pollevent).count();
+		auto loop_dur_draw = std::chrono::duration_cast<std::chrono::microseconds>(loop_time_end - loop_time_work).count();
+		DEBUG(driver, 2, "%6lld us: %c %6lld / %6lld / %6lld", loop_dur_total, loop_mode_sleep?'s':'G', loop_dur_pollevent, loop_dur_work, loop_dur_draw);
 	}
 
 #ifdef _DEBUG
 	uint32 et = GetTick();
 
-	DEBUG(driver, 1, "cocoa_v: nextEventMatchingMask took %i ms total", _tEvent);
+	DEBUG(driver, 1, "cocoa_v: nextEventMatchingMask took %i ms total, %i ms max", _tEvent, _tEventMax);
+	DEBUG(driver, 1, "cocoa_v: nextEventMatchingMask called %i times, %i were slow (%.1f%%)", _cEvent, _cEventSlow, 100.f * _cEventSlow / _cEvent);
 	DEBUG(driver, 1, "cocoa_v: game loop took %i ms total (%i ms without sleep)", et - et0, et - et0 - st);
 	DEBUG(driver, 1, "cocoa_v: (nextEventMatchingMask total)/(game loop total) is %f%%", (double)_tEvent / (double)(et - et0) * 100);
 	DEBUG(driver, 1, "cocoa_v: (nextEventMatchingMask total)/(game loop without sleep total) is %f%%", (double)_tEvent / (double)(et - et0 - st) * 100);

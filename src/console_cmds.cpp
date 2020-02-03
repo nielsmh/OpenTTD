@@ -2051,6 +2051,13 @@ DEF_CONSOLE_CMD(ConFramerateWindow)
 	return true;
 }
 
+DEF_CONSOLE_CMD(ConSetSlowdown)
+{
+	extern uint64 _fake_slowdown;
+	if (argc > 1) _fake_slowdown = atoi(argv[1]) * 1000;
+	return true;
+}
+
 /*******************************
  * console command registration
  *******************************/
@@ -2183,6 +2190,7 @@ void IConsoleStdLibRegister()
 #endif
 	IConsoleCmdRegister("fps",     ConFramerate);
 	IConsoleCmdRegister("fps_wnd", ConFramerateWindow);
+	IConsoleCmdRegister("slowdown", ConSetSlowdown);
 
 	/* NewGRF development stuff */
 	IConsoleCmdRegister("reload_newgrfs",  ConNewGRFReload, ConHookNewGRFDeveloperTool);
