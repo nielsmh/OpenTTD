@@ -89,43 +89,54 @@ bool BaseSet<T, Tnum_files, Tsearch_in_tars>::FillSetDetails(IniFile *ini, const
 
 		file->filename = str_fmt("%s%s", path, filename);
 
-		/* Then find the MD5 checksum */
-		item = md5s->GetItem(filename, false);
-		if (item == nullptr || item->value == nullptr) {
-			DEBUG(grf, 0, "No MD5 checksum specified for: %s (in %s)", filename, full_filename);
-			return false;
-		}
-		if (!file->ReadHashString(item->value, full_filename)) return false;
+		if (!this->CheckDataFile(ini, *file, full_filename)) return false;
+	}
 
-		/* Then find the warning message when the file's missing */
-		item = origin->GetItem(filename, false);
-		if (item == nullptr) item = origin->GetItem("default", false);
-		if (item == nullptr) {
-			DEBUG(grf, 1, "No origin warning message specified for: %s", filename);
-			file->missing_warning = stredup("");
-		} else {
-			file->missing_warning = stredup(item->value);
-		}
+	return true;
+}
 
-		file->check_result = T::CheckMD5(file, BASESET_DIR);
-		switch (file->check_result) {
-			case MD5File::CR_UNKNOWN:
-				break;
+template <class T, size_t Tnum_files, bool Tsearch_in_tars>
+bool BaseSet<T, Tnum_files, Tsearch_in_tars>::CheckDataFile(IniFile *ini, MD5File &file, const char *full_filename)
+{
+	IniGroup *md5s = ini->GetGroup("md5s");
+	IniGroup *origin = ini->GetGroup("origin");
 
-			case MD5File::CR_MATCH:
-				this->valid_files++;
-				this->found_files++;
-				break;
+	/* Then find the MD5 checksum */
+	item = md5s->GetItem(file.filename, false);
+	if (item == nullptr || item->value == nullptr) {
+		DEBUG(grf, 0, "No MD5 checksum specified for: %s (in %s)", filename, full_filename);
+		return false;
+	}
+	if (!file.ReadHashString(item->value, full_filename)) return false;
 
-			case MD5File::CR_MISMATCH:
-				DEBUG(grf, 1, "MD5 checksum mismatch for: %s (in %s)", filename, full_filename);
-				this->found_files++;
-				break;
+	/* Then find the warning message when the file's missing */
+	item = origin->GetItem(file.filename, false);
+	if (item == nullptr) item = origin->GetItem("default", false);
+	if (item == nullptr) {
+		DEBUG(grf, 1, "No origin warning message specified for: %s", filename);
+		file.missing_warning = stredup("");
+	} else {
+		file.missing_warning = stredup(item->value);
+	}
 
-			case MD5File::CR_NO_FILE:
-				DEBUG(grf, 1, "The file %s specified in %s is missing", filename, full_filename);
-				break;
-		}
+	file.check_result = T::CheckMD5(file, BASESET_DIR);
+	switch (file.check_result) {
+		case MD5File::CR_UNKNOWN:
+			break;
+
+		case MD5File::CR_MATCH:
+			this->valid_files++;
+			this->found_files++;
+			break;
+
+		case MD5File::CR_MISMATCH:
+			DEBUG(grf, 1, "MD5 checksum mismatch for: %s (in %s)", filename, full_filename);
+			this->found_files++;
+			break;
+
+		case MD5File::CR_NO_FILE:
+			DEBUG(grf, 1, "The file %s specified in %s is missing", filename, full_filename);
+			break;
 	}
 
 	return true;

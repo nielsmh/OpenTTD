@@ -110,6 +110,8 @@ struct BaseSet {
 
 	bool FillSetDetails(IniFile *ini, const char *path, const char *full_filename, bool allow_empty_filename = true);
 
+	bool CheckDataFile(IniFile *ini, MD5File &file, const char *full_filename);
+
 	/**
 	 * Get the description for the given ISO code.
 	 * It falls back to the first two characters of the ISO code in case
