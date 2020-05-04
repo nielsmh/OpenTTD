@@ -132,7 +132,12 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 			IniItem *cat = md5s->GetItem("roland.cat", false);
 			IniItem *pat = md5s->GetItem("lapc1.pat", false);
 			if (cat != nullptr && pat != nullptr) {
+				this->patfile.filename = stredup("lapc1.pat");
 				have_patfile = this->CheckDataFile(ini, this->patfile, full_filename);
+				if (have_patfile) {
+					this->found_files--;
+					this->valid_files--;
+				}
 			}
 		}
 

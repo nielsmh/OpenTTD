@@ -102,9 +102,9 @@ bool BaseSet<T, Tnum_files, Tsearch_in_tars>::CheckDataFile(IniFile *ini, MD5Fil
 	IniGroup *origin = ini->GetGroup("origin");
 
 	/* Then find the MD5 checksum */
-	item = md5s->GetItem(file.filename, false);
+	IniItem *item = md5s->GetItem(file.filename, false);
 	if (item == nullptr || item->value == nullptr) {
-		DEBUG(grf, 0, "No MD5 checksum specified for: %s (in %s)", filename, full_filename);
+		DEBUG(grf, 0, "No MD5 checksum specified for: %s (in %s)", file.filename, full_filename);
 		return false;
 	}
 	if (!file.ReadHashString(item->value, full_filename)) return false;
@@ -113,13 +113,13 @@ bool BaseSet<T, Tnum_files, Tsearch_in_tars>::CheckDataFile(IniFile *ini, MD5Fil
 	item = origin->GetItem(file.filename, false);
 	if (item == nullptr) item = origin->GetItem("default", false);
 	if (item == nullptr) {
-		DEBUG(grf, 1, "No origin warning message specified for: %s", filename);
+		DEBUG(grf, 1, "No origin warning message specified for: %s", file.filename);
 		file.missing_warning = stredup("");
 	} else {
 		file.missing_warning = stredup(item->value);
 	}
 
-	file.check_result = T::CheckMD5(file, BASESET_DIR);
+	file.check_result = T::CheckMD5(&file, BASESET_DIR);
 	switch (file.check_result) {
 		case MD5File::CR_UNKNOWN:
 			break;
@@ -130,12 +130,12 @@ bool BaseSet<T, Tnum_files, Tsearch_in_tars>::CheckDataFile(IniFile *ini, MD5Fil
 			break;
 
 		case MD5File::CR_MISMATCH:
-			DEBUG(grf, 1, "MD5 checksum mismatch for: %s (in %s)", filename, full_filename);
+			DEBUG(grf, 1, "MD5 checksum mismatch for: %s (in %s)", file.filename, full_filename);
 			this->found_files++;
 			break;
 
 		case MD5File::CR_NO_FILE:
-			DEBUG(grf, 1, "The file %s specified in %s is missing", filename, full_filename);
+			DEBUG(grf, 1, "The file %s specified in %s is missing", file.filename, full_filename);
 			break;
 	}
 

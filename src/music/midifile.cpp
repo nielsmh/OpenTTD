@@ -845,6 +845,60 @@ bool MidiFile::LoadMpsData(const byte *data, size_t length)
 	return machine.PlayInto() && FixupMidiData(*this);
 }
 
+/**
+ * Insert SysEx patch data from a patchset file.
+ * @param filename  Name of file containing patchset.
+ * @return  true if the file could be found and was valid
+ */
+bool MidiFile::InsertPatches(const char *filename)
+{
+	/*
+	 * The file consists of messages terminated by FFh bytes.
+	 * The file is terminated by an empty message.
+	 * A common header is prepended to each individual message.
+	 * The Roland SysEx checksum is calculated and appended to each message.
+	 * Only the main message part is checksummed.
+	 * The ending F7h byte is appended to each message.
+	 */
+	const byte header[] = { 0xF0, 0x41, 0x10, 0x16, 0x12 };
+
+	auto insertpos = this->blocks.begin();
+
+	/* Prepare file data */
+	size_t filesize = 0;
+	FILE *f = FioFOpenFile(filename, "rb", Subdirectory::BASESET_DIR, &filesize);
+	if (!f) return false;
+	ByteBuffer data(f, filesize);
+	fclose(f);
+
+	DataBlock block;
+	byte checksum = 0;
+	byte b = 0;
+	while (data.ReadByte(b)) {
+		if (b == 0xFF) {
+			if (block.data.size() == 0) break; // terminated by empty message
+			/* Finish checksum and append it */
+			checksum = (~checksum + 1) & 0x7F;
+			block.data.push_back(checksum);
+			block.data.push_back(MIDIST_ENDSYSEX);
+			/* Insert block and prepare for next */
+			insertpos = this->blocks.insert(insertpos, block);
+			++insertpos;
+			block = DataBlock();
+			checksum = 0;
+		} else {
+			/* Insert header on first byte of a block */
+			if (block.data.size() == 0) {
+				block.data.insert(block.data.begin(), header, endof(header));
+			}
+			block.data.push_back(b);
+			checksum = checksum + b;
+		}
+	}
+
+	return true;
+}
+
 bool MidiFile::LoadSong(const MusicSongInfo &song)
 {
 	switch (song.filetype) {
@@ -857,6 +911,7 @@ bool MidiFile::LoadSong(const MusicSongInfo &song)
 			if (songdata != nullptr) {
 				bool result = this->LoadMpsData(songdata, songdatalen);
 				free(songdata);
+				if (result && song.patfile != nullptr) result = this->InsertPatches(song.patfile);
 				return result;
 			} else {
 				return false;
