@@ -95,25 +95,7 @@ bool BaseSet<T, Tnum_files, Tsearch_in_tars>::FillSetDetails(IniFile *ini, const
 			DEBUG(grf, 0, "No MD5 checksum specified for: %s (in %s)", filename, full_filename);
 			return false;
 		}
-		char *c = item->value;
-		for (uint i = 0; i < sizeof(file->hash) * 2; i++, c++) {
-			uint j;
-			if ('0' <= *c && *c <= '9') {
-				j = *c - '0';
-			} else if ('a' <= *c && *c <= 'f') {
-				j = *c - 'a' + 10;
-			} else if ('A' <= *c && *c <= 'F') {
-				j = *c - 'A' + 10;
-			} else {
-				DEBUG(grf, 0, "Malformed MD5 checksum specified for: %s (in %s)", filename, full_filename);
-				return false;
-			}
-			if (i % 2 == 0) {
-				file->hash[i / 2] = j << 4;
-			} else {
-				file->hash[i / 2] |= j;
-			}
-		}
+		if (!file->ReadHashString(item->value, full_filename)) return false;
 
 		/* Then find the warning message when the file's missing */
 		item = origin->GetItem(filename, false);

@@ -35,6 +35,8 @@ struct MD5File {
 	const char *missing_warning; ///< warning when this file is missing
 	ChecksumResult check_result; ///< cached result of md5 check
 
+	bool ReadHashString(const char *hash_str, const char *ini_filename);
+
 	ChecksumResult CheckMD5(Subdirectory subdir, size_t max_size) const;
 };
 

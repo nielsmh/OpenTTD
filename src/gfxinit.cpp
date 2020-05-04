@@ -422,6 +422,31 @@ MD5File::ChecksumResult MD5File::CheckMD5(Subdirectory subdir, size_t max_size) 
 	return memcmp(this->hash, digest, sizeof(this->hash)) == 0 ? CR_MATCH : CR_MISMATCH;
 }
 
+bool MD5File::ReadHashString(const char *hash_str, const char *ini_filename)
+{
+	const char *c = hash_str;
+	for (uint i = 0; i < sizeof(this->hash) * 2; i++, c++) {
+		uint j;
+		if ('0' <= *c && *c <= '9') {
+			j = *c - '0';
+		} else if ('a' <= *c && *c <= 'f') {
+			j = *c - 'a' + 10;
+		} else if ('A' <= *c && *c <= 'F') {
+			j = *c - 'A' + 10;
+		} else {
+			DEBUG(grf, 0, "Malformed MD5 checksum specified for: %s (in %s)", this->filename, ini_filename);
+			return false;
+		}
+		if (i % 2 == 0) {
+			this->hash[i / 2] = j << 4;
+		} else {
+			this->hash[i / 2] |= j;
+		}
+	}
+
+	return true;
+}
+
 /** Names corresponding to the GraphicsFileType */
 static const char * const _graphics_file_names[] = { "base", "logos", "arctic", "tropical", "toyland", "extra" };
 
