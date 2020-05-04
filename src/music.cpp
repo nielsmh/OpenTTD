@@ -121,9 +121,21 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 	bool ret = this->BaseSet<MusicSet, NUM_SONGS_AVAILABLE, false>::FillSetDetails(ini, path, full_filename);
 	if (ret) {
 		this->num_available = 0;
+		IniGroup *md5s = ini->GetGroup("md5s");
 		IniGroup *names = ini->GetGroup("names");
 		IniGroup *catindex = ini->GetGroup("catindex");
 		IniGroup *timingtrim = ini->GetGroup("timingtrim");
+
+		/* Check if we have "roland.cat" and "lapc1.pat" and use special MT-32 mode */
+		bool have_patfile = false;
+		{
+			IniItem *cat = md5s->GetItem("roland.cat", false);
+			IniItem *pat = md5s->GetItem("lapc1.pat", false);
+			if (cat != nullptr && pat != nullptr) {
+				have_patfile = this->CheckDataFile(ini, this->patfile, full_filename);
+			}
+		}
+
 		uint tracknr = 1;
 		for (uint i = 0; i < lengthof(this->songinfo); i++) {
 			const char *filename = this->files[i].filename;
@@ -133,6 +145,7 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 			}
 
 			this->songinfo[i].filename = filename; // non-owned pointer
+			this->songinfo[i].patfile = nullptr;
 
 			IniItem *item = catindex->GetItem(_music_file_names[i], false);
 			if (item != nullptr && !StrEmpty(item->value)) {
@@ -147,6 +160,10 @@ bool MusicSet::FillSetDetails(IniFile *ini, const char *path, const char *full_f
 				}
 				strecpy(this->songinfo[i].songname, songname, lastof(this->songinfo[i].songname));
 				free(songname);
+				/* Check for MT-32 with patches */
+				if (have_patfile && strcmp(filename, "roland.cat") == 0) {
+					this->songinfo[i].patfile = this->patfile.filename; // non-owned pointer
+				}
 			} else {
 				this->songinfo[i].filetype = MTT_STANDARDMIDI;
 			}

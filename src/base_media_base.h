@@ -303,6 +303,7 @@ struct MusicSongInfo {
 	char songname[32];       ///< name of song displayed in UI
 	byte tracknr;            ///< track number of song displayed in UI
 	const char *filename;    ///< file on disk containing song (when used in MusicSet class, this pointer is owned by MD5File object for the file)
+	const char *patfile;     ///< file on disk containing patch data (when used in MusicSet class, this pointer is owned by MD5File object for the file)
 	MusicTrackType filetype; ///< decoder required for song file
 	int cat_index;           ///< entry index in CAT file, for filetype==MTT_MPSMIDI
 	bool loop;               ///< song should play in a tight loop if possible, never ending
@@ -316,6 +317,14 @@ struct MusicSet : BaseSet<MusicSet, NUM_SONGS_AVAILABLE, false> {
 	MusicSongInfo songinfo[NUM_SONGS_AVAILABLE];
 	/** Number of valid songs in set. */
 	byte num_available;
+	/** Add-on file with SysEx patch data */
+	MD5File patfile;
+
+	~MusicSet()
+	{
+		if (this->patfile.filename) free(this->patfile.filename);
+		if (this->patfile.missing_warning) free(this->patfile.missing_warning);
+	}
 
 	bool FillSetDetails(struct IniFile *ini, const char *path, const char *full_filename);
 };
