@@ -803,12 +803,13 @@ Point Layouter::GetCharPosition(const char *ch) const
 
 /**
  * Get the character that is at a position.
- * @param x Position in the string.
+ * @param x Visual position in the string (pixel coordinate).
+ * @param line_index Which line of the layout to search
  * @return Pointer to the character at the position or nullptr if no character is at the position.
  */
-const char *Layouter::GetCharAtPosition(int x) const
+const char *Layouter::GetCharAtPosition(int x, size_t line_index) const
 {
-	const auto &line = this->front();
+	const auto &line = this->at(line_index);
 
 	for (int run_index = 0; run_index < line->CountRuns(); run_index++) {
 		const ParagraphLayouter::VisualRun &run = line->GetVisualRun(run_index);
