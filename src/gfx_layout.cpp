@@ -755,6 +755,20 @@ Dimension Layouter::GetBounds()
 }
 
 /**
+ * Test whether a character is a non-printable formatting code
+ */
+static bool IsConsumedFormattingCode(WChar ch)
+{
+	if (ch >= SCC_BLUE && ch <= SCC_BLACK) return true;
+	if (ch == SCC_PUSH_COLOUR) return true;
+	if (ch == SCC_POP_COLOUR) return true;
+	if (ch >= SCC_FIRST_FONT && ch <= SCC_LAST_FONT) return true;
+	if (!IsPrintable(ch)) return false;
+	// Minor risk: Not testing IsTextDirectionChar(ch) because it's not known whether the layouter supported RTL
+	return false;
+}
+
+/**
  * Get the position of a character in the layout.
  * @param ch Character to get the position of.
  * @return Upper left corner of the character relative to the start of the string.
@@ -771,7 +785,7 @@ Point Layouter::GetCharPosition(const char *ch) const
 		size_t len = Utf8Decode(&c, str);
 		if (c == '\0' || c == '\n') break;
 		str += len;
-		index += this->front()->GetInternalCharLength(c);
+		if (!IsConsumedFormattingCode(c)) index += this->front()->GetInternalCharLength(c);
 	}
 
 	if (str == ch) {
@@ -831,7 +845,7 @@ const char *Layouter::GetCharAtPosition(int x, size_t line_index) const
 					if (cur_idx == index) return str;
 
 					WChar c = Utf8Consume(&str);
-					cur_idx += line->GetInternalCharLength(c);
+					if (!IsConsumedFormattingCode(c)) cur_idx += line->GetInternalCharLength(c);
 				}
 			}
 		}
