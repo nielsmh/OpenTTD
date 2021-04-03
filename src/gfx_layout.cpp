@@ -256,7 +256,7 @@ public:
 		int glyph_count;  ///< The number of glyphs.
 
 	public:
-		FallbackVisualRun(Font *font, const WChar *chars, int glyph_count, int x);
+		FallbackVisualRun(Font *font, const WChar *chars, int glyph_count, int char_ofs, int x);
 		FallbackVisualRun(FallbackVisualRun &&other) noexcept;
 		~FallbackVisualRun() override;
 		const Font *GetFont() const override;
@@ -328,9 +328,10 @@ public:
  * @param font       The font to use for this run.
  * @param chars      The characters to use for this run.
  * @param char_count The number of characters in this run.
+ * @param char_ofs   Offset of first character in this run relative to entire string.
  * @param x          The initial x position for this run.
  */
-FallbackParagraphLayout::FallbackVisualRun::FallbackVisualRun(Font *font, const WChar *chars, int char_count, int x) :
+FallbackParagraphLayout::FallbackVisualRun::FallbackVisualRun(Font *font, const WChar *chars, int char_count, int char_ofs, int x) :
 		font(font), glyph_count(char_count)
 {
 	this->glyphs = MallocT<GlyphID>(this->glyph_count);
@@ -345,7 +346,7 @@ FallbackParagraphLayout::FallbackVisualRun::FallbackVisualRun(Font *font, const 
 		this->glyphs[i] = font->fc->MapCharToGlyph(chars[i]);
 		this->positions[2 * i + 2] = this->positions[2 * i] + font->fc->GetGlyphWidth(this->glyphs[i]);
 		this->positions[2 * i + 3] = 0;
-		this->glyph_to_char[i] = i;
+		this->glyph_to_char[i] = char_ofs + i;
 	}
 }
 
@@ -509,7 +510,7 @@ std::unique_ptr<const ParagraphLayouter::Line> FallbackParagraphLayout::NextLine
 	if (*this->buffer == '\0') {
 		/* Only a newline. */
 		this->buffer = nullptr;
-		l->emplace_back(this->runs.front().second, this->buffer, 0, 0);
+		l->emplace_back(this->runs.front().second, this->buffer, 0, 0, 0);
 		return l;
 	}
 
@@ -538,7 +539,7 @@ std::unique_ptr<const ParagraphLayouter::Line> FallbackParagraphLayout::NextLine
 
 		if (this->buffer == next_run) {
 			int w = l->GetWidth();
-			l->emplace_back(iter->second, begin, this->buffer - begin, w);
+			l->emplace_back(iter->second, begin, this->buffer - begin, begin - this->buffer_begin, w);
 			iter++;
 			assert(iter != this->runs.End());
 
@@ -585,7 +586,7 @@ std::unique_ptr<const ParagraphLayouter::Line> FallbackParagraphLayout::NextLine
 
 	if (l->size() == 0 || last_char - begin != 0) {
 		int w = l->GetWidth();
-		l->emplace_back(iter->second, begin, last_char - begin, w);
+		l->emplace_back(iter->second, begin, last_char - begin, begin - this->buffer_begin, w);
 	}
 	return l;
 }
