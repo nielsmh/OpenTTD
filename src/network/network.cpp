@@ -1097,6 +1097,7 @@ static const uint GITHASH_SUFFIX_LEN = 12;
  */
 const char * GetNetworkRevisionString()
 {
+	return "1.11.0";
 	/* This will be allocated on heap and never free'd, but only once so not a "real" leak. */
 	static char *network_revision = nullptr;
 
